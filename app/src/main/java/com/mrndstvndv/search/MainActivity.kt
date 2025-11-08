@@ -1,6 +1,7 @@
 package com.mrndstvndv.search
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,6 +25,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.mrndstvndv.search.ui.theme.SearchTheme
+import androidx.core.net.toUri
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +56,7 @@ class MainActivity : ComponentActivity() {
             }
 
             SearchTheme {
-                Box(Modifier.fillMaxSize().padding(top=50.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxSize().padding(top=50.dp)) {
                     Column {
                         Surface {
                             OutlinedTextField(
@@ -65,14 +67,22 @@ class MainActivity : ComponentActivity() {
                                 label = { Text("Search") },
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                 keyboardActions = KeyboardActions(onDone = {
-                                    val firstPackage = filteredPackages.firstOrNull()
-                                    if (firstPackage != null) {
-                                        val launchIntent = pm.getLaunchIntentForPackage(firstPackage)
-                                        if (launchIntent != null) {
-                                            applicationContext.startActivity(launchIntent)
-                                        }
-                                        finish()
-                                    }
+                                     if (filteredPackages.isNotEmpty()) {
+                                     val firstPackage = filteredPackages.first()
+                                         val launchIntent = pm.getLaunchIntentForPackage(firstPackage)
+                                         if (launchIntent != null) {
+                                             startActivity(launchIntent)
+                                         }
+                                         finish()
+                                     } else {
+                                 val query = textState.value.trim()
+                                if (query.isNotEmpty()) {
+                                val url = "https://www.bing.com/search?q=${Uri.encode(query)}&form=QBLH"
+                                val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+                                startActivity(intent)
+                                finish()
+                                }
+                                }
                                 })
                             )
                         }
@@ -82,11 +92,11 @@ class MainActivity : ComponentActivity() {
                                 items(filteredPackages) { packageName ->
                                     val app = packageManager.getApplicationInfo(packageName, 0)
                                     Box(Modifier.fillMaxWidth().height(50.dp).clickable {
-                                        val intent = pm.getLaunchIntentForPackage(packageName)
-                                        if (intent != null) {
-                                            applicationContext.startActivity(intent)
-                                        }
-                                        finish()
+                                    val intent = pm.getLaunchIntentForPackage(packageName)
+                                    if (intent != null) {
+                                    startActivity(intent)
+                                    }
+                                    finish()
                                     }, contentAlignment = Alignment.Center) {
                                         Text(pm.getApplicationLabel(app).toString())
                                     }
