@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -56,7 +57,12 @@ class MainActivity : ComponentActivity() {
             }
 
             SearchTheme {
-                Box(Modifier.fillMaxSize().padding(top=50.dp)) {
+                Box(Modifier.fillMaxSize().clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    finish()
+                }.padding(top=50.dp)) {
                     Column {
                         Surface {
                             OutlinedTextField(
