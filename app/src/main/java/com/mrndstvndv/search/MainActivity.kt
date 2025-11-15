@@ -3,7 +3,6 @@ package com.mrndstvndv.search
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -29,12 +28,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
 import com.mrndstvndv.search.model.Item
 import com.mrndstvndv.search.ui.components.ItemsList
 import com.mrndstvndv.search.ui.components.SearchField
 import com.mrndstvndv.search.ui.theme.SearchTheme
+import com.mrndstvndv.search.util.loadAppIconBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.pow
@@ -185,37 +184,6 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             window.decorView?.let { window.setBackgroundBlurRadius(40) }
         }
-    }
-
-    private fun loadAppIconBitmap(pm: PackageManager, packageName: String, iconSize: Int): Bitmap? {
-        if (!isPackageInstalled(pm, packageName)) return null
-        return runCatching {
-            val app = pm.getApplicationInfo(packageName, 0)
-            app.loadIcon(pm).toBitmapOrNull(iconSize)
-        }.getOrNull()
-    }
-
-    private fun isPackageInstalled(pm: PackageManager, packageName: String): Boolean {
-        return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                pm.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
-            } else {
-                @Suppress("DEPRECATION")
-                pm.getPackageInfo(packageName, 0)
-            }
-            true
-        } catch (_: PackageManager.NameNotFoundException) {
-            false
-        }
-    }
-
-    private fun Drawable.toBitmapOrNull(iconSize: Int): Bitmap? {
-        val width = intrinsicWidth.takeIf { it > 0 } ?: iconSize
-        val height = intrinsicHeight.takeIf { it > 0 } ?: iconSize
-        setBounds(0, 0, width, height)
-        return runCatching {
-            toBitmap(width, height, Bitmap.Config.ARGB_8888)
-        }.getOrNull()
     }
 }
 
