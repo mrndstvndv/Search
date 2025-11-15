@@ -108,6 +108,7 @@ class MainActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.height(6.dp))
 
                         ItemsList(
+                            modifier = Modifier.weight(1f),
                             results = providerResults,
                             onItemClick = { result -> result.onSelect?.invoke() }
                         )

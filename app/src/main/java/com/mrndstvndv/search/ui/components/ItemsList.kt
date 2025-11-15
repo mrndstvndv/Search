@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,11 +33,15 @@ import com.mrndstvndv.search.provider.model.ProviderResult
 @Composable
 fun ItemsList(
     results: List<ProviderResult>,
-    onItemClick: (ProviderResult) -> Unit
+    onItemClick: (ProviderResult) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     if (results.isEmpty()) return
 
     LazyColumn(
+        modifier = modifier
+            .fillMaxWidth()
+            .imePadding(),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         itemsIndexed(results) { index, item ->
