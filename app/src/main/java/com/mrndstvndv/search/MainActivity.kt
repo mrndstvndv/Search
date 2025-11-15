@@ -8,6 +8,14 @@ import android.util.Patterns
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -22,6 +30,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -100,6 +109,12 @@ class MainActivity : ComponentActivity() {
             }
 
             SearchTheme {
+                val hasVisibleResults = shouldShowResults && providerResults.isNotEmpty()
+                val spacerWeight by animateFloatAsState(
+                    targetValue = if (hasVisibleResults) 0.01f else 1f,
+                    animationSpec = tween(durationMillis = 300)
+                )
+
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -111,56 +126,87 @@ class MainActivity : ComponentActivity() {
                         }
                         .padding(top = 50.dp)
                 ) {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                        SearchField(
-                            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                            value = textState.value,
-                            onValueChange = { textState.value = it },
-                            singleLine = true,
-                            placeholder = { Text("Search") },
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = {
-                                providerResults.firstOrNull()?.onSelect?.invoke() ?: run {
-                                    val query = textState.value.trim()
-                                    if (query.isNotEmpty()) {
-                                        handleQuerySubmission(query)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Spacer(Modifier.weight(spacerWeight))
+
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            SearchField(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(focusRequester),
+                                value = textState.value,
+                                onValueChange = { textState.value = it },
+                                singleLine = true,
+                                placeholder = { Text("Search") },
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    providerResults.firstOrNull()?.onSelect?.invoke() ?: run {
+                                        val query = textState.value.trim()
+                                        if (query.isNotEmpty()) {
+                                            handleQuerySubmission(query)
+                                        }
                                     }
+                                })
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = {
+                                    val intent = Intent(this@MainActivity, SettingsActivity::class.java)
+                                    startActivity(intent)
+                                }) {
+                                    Text(text = "Settings")
                                 }
-                            })
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            TextButton(onClick = {
-                                val intent = Intent(this@MainActivity, SettingsActivity::class.java)
-                                startActivity(intent)
-                            }) {
-                                Text(text = "Settings")
                             }
+                            Spacer(modifier = Modifier.height(6.dp))
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
 
-                        ItemsList(
-                            modifier = Modifier.weight(1f).imePadding().padding(bottom = 8.dp),
-                            results = if (shouldShowResults) providerResults else emptyList(),
-                            onItemClick = { result -> result.onSelect?.invoke() },
-                            onItemLongPress = onItemLongPress@{ result ->
-                                val target = result.aliasTarget ?: return@onItemLongPress
-                                val suggestion = sanitizeAliasSuggestion(result.title)
-                                aliasDialogValue = suggestion
-                                aliasDialogError = null
-                                aliasDialogCandidate = AliasCreationCandidate(
-                                    target = target,
-                                    suggestion = suggestion,
-                                    description = result.subtitle ?: result.title
-                                )
-                            }
-                        )
+                        if (!hasVisibleResults) {
+                            Spacer(Modifier.weight(spacerWeight))
+                        }
+
+                        AnimatedVisibility(
+                            visible = hasVisibleResults,
+                            modifier = Modifier
+                                .weight(if (hasVisibleResults) 1f else 0.01f)
+                                .imePadding()
+                                .padding(bottom = 8.dp),
+                            enter = fadeIn(animationSpec = tween(durationMillis = 250)) +
+                                    expandVertically(
+                                        expandFrom = Alignment.Top,
+                                        animationSpec = tween(durationMillis = 250)
+                                    ),
+                            exit = fadeOut(animationSpec = tween(durationMillis = 200)) +
+                                    shrinkVertically(
+                                        shrinkTowards = Alignment.Top,
+                                        animationSpec = tween(durationMillis = 200)
+                                    )
+                        ) {
+                            ItemsList(
+                                modifier = Modifier.fillMaxSize(),
+                                results = providerResults,
+                                onItemClick = { result -> result.onSelect?.invoke() },
+                                onItemLongPress = onItemLongPress@{ result ->
+                                    val target = result.aliasTarget ?: return@onItemLongPress
+                                    val suggestion = sanitizeAliasSuggestion(result.title)
+                                    aliasDialogValue = suggestion
+                                    aliasDialogError = null
+                                    aliasDialogCandidate = AliasCreationCandidate(
+                                        target = target,
+                                        suggestion = suggestion,
+                                        description = result.subtitle ?: result.title
+                                    )
+                                }
+                            )
+                        }
                     }
-
                 }
             }
 
