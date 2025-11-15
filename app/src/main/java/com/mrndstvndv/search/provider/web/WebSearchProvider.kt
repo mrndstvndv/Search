@@ -43,7 +43,11 @@ class WebSearchProvider(
                 .filter { site -> site.displayName.contains(triggerToken, ignoreCase = true) }
         }
         val searchTerms = dropTriggerToken(cleaned, triggerToken).ifBlank { cleaned }.trim()
-        val visibleSites = listOf(defaultSite) + triggerMatches
+        val visibleSites = if (triggerMatches.isEmpty()) {
+            listOf(defaultSite)
+        } else {
+            triggerMatches + defaultSite
+        }
         return visibleSites.map { site ->
             val actualQuery = if (site.id == defaultSite.id) cleaned else searchTerms
             val searchUrl = site.buildUrl(actualQuery)
