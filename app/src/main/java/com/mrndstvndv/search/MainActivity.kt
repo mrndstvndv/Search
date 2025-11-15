@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(textState.value, aliasEntries, webSearchSettings) {
                 val match = aliasRepository.matchAlias(textState.value)
                 val normalizedText = match?.remainingQuery ?: textState.value
-                val query = Query(normalizedText)
+                val query = Query(normalizedText, originalText = textState.value)
                 val aggregated = withContext(Dispatchers.Default) {
                     val results = mutableListOf<ProviderResult>()
                     providers.forEach { provider ->

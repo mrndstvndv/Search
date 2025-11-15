@@ -32,20 +32,30 @@ class WebSearchProvider(
         val settings = settingsRepository.webSearchSettings.value
         val sites = settings.sites
         if (sites.isEmpty()) return emptyList()
-        val orderedSites = settings.siteForId(settings.defaultSiteId)?.let { defaultSite ->
-            listOf(defaultSite) + sites.filter { it.id != defaultSite.id }
-        } ?: sites
-        return orderedSites.map { site ->
-            val searchUrl = site.buildUrl(cleaned)
+        val defaultSite = settings.siteForId(settings.defaultSiteId) ?: sites.first()
+        val triggerToken = query.originalText.trimStart().takeWhile { char ->
+            !char.isWhitespace() && char != ':'
+        }
+        val triggerMatches = if (triggerToken.isBlank()) {
+            emptyList()
+        } else {
+            sites.filter { it.id != defaultSite.id }
+                .filter { site -> site.displayName.contains(triggerToken, ignoreCase = true) }
+        }
+        val searchTerms = dropTriggerToken(cleaned, triggerToken).ifBlank { cleaned }.trim()
+        val visibleSites = listOf(defaultSite) + triggerMatches
+        return visibleSites.map { site ->
+            val actualQuery = if (site.id == defaultSite.id) cleaned else searchTerms
+            val searchUrl = site.buildUrl(actualQuery)
             val action = {
                 val intent = Intent(Intent.ACTION_VIEW, searchUrl.toUri())
                 activity.startActivity(intent)
                 activity.finish()
             }
             ProviderResult(
-                id = "$id:${site.id}:${cleaned.hashCode()}",
+                id = "$id:${site.id}:${actualQuery.hashCode()}",
                 title = "Search \"$cleaned\"",
-                subtitle = if (site.id == settings.defaultSiteId) {
+                subtitle = if (site.id == defaultSite.id) {
                     "${site.displayName} (default)"
                 } else {
                     site.displayName
@@ -55,5 +65,18 @@ class WebSearchProvider(
                 aliasTarget = WebSearchAliasTarget(site.id, site.displayName)
             )
         }
+    }
+
+    private fun dropTriggerToken(queryText: String, triggerToken: String): String {
+        if (triggerToken.isBlank()) return queryText.trimStart()
+        val trimmed = queryText.trimStart()
+        val lowerTrimmed = trimmed.lowercase()
+        val lowerToken = triggerToken.lowercase()
+        if (!lowerTrimmed.startsWith(lowerToken)) return trimmed
+        if (trimmed.length > triggerToken.length) {
+            val boundary = trimmed[triggerToken.length]
+            if (!boundary.isWhitespace()) return trimmed
+        }
+        return trimmed.substring(triggerToken.length).trimStart()
     }
 }
