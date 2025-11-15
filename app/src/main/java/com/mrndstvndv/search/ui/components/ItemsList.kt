@@ -2,8 +2,10 @@ package com.mrndstvndv.search.ui.components
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,12 +29,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.mrndstvndv.search.provider.model.ProviderResult
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ItemsList(
     results: List<ProviderResult>,
-    onItemClick: (ProviderResult) -> Unit
+    onItemClick: (ProviderResult) -> Unit,
+    onItemLongPress: ((ProviderResult) -> Unit)? = null
 ) {
     if (results.isEmpty()) return
 
@@ -75,11 +80,26 @@ fun ItemsList(
             )
 
             Surface(shape = shape, tonalElevation = 1.dp) {
+                val interactionSource = remember { MutableInteractionSource() }
+                val clickModifier = if (onItemLongPress != null) {
+                    Modifier.combinedClickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = { onItemClick(item) },
+                        onLongClick = { onItemLongPress(item) }
+                    )
+                } else {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = null
+                    ) { onItemClick(item) }
+                }
+
                 Row(
                     Modifier
                         .fillMaxWidth()
                         .height(70.dp)
-                        .clickable { onItemClick(item) }
+                        .then(clickModifier)
                         .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

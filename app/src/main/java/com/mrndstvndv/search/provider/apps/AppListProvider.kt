@@ -7,6 +7,7 @@ import com.mrndstvndv.search.provider.Provider
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.util.loadAppIconBitmap
+import com.mrndstvndv.search.alias.AppLaunchAliasTarget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -51,7 +52,8 @@ class AppListProvider(
                 icon = icon,
                 providerId = id,
                 extras = mapOf(EXTRA_PACKAGE_NAME to entry.packageName),
-                onSelect = action
+                onSelect = action,
+                aliasTarget = AppLaunchAliasTarget(entry.packageName, entry.label)
             )
         }
         return results

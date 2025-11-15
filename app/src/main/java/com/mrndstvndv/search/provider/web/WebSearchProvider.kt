@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Patterns
 import androidx.activity.ComponentActivity
+import com.mrndstvndv.search.alias.WebSearchAliasTarget
 import com.mrndstvndv.search.provider.Provider
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
@@ -50,7 +51,8 @@ class WebSearchProvider(
                     site.displayName
                 },
                 providerId = id,
-                onSelect = action
+                onSelect = action,
+                aliasTarget = WebSearchAliasTarget(site.id, site.displayName)
             )
         }
     }

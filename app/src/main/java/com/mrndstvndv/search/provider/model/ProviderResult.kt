@@ -1,6 +1,7 @@
 package com.mrndstvndv.search.provider.model
 
 import android.graphics.Bitmap
+import com.mrndstvndv.search.alias.AliasTarget
 
 data class ProviderResult(
     val id: String,
@@ -10,5 +11,6 @@ data class ProviderResult(
     val providerId: String,
     val score: Float = 0f,
     val extras: Map<String, Any?> = emptyMap(),
-    val onSelect: (() -> Unit)? = null
+    val onSelect: (() -> Unit)? = null,
+    val aliasTarget: AliasTarget? = null
 )
