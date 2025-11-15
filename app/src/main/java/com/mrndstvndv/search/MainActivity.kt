@@ -144,7 +144,8 @@ class MainActivity : ComponentActivity() {
                         Spacer(modifier = Modifier.height(6.dp))
 
                         ItemsList(
-                        results = if (shouldShowResults) providerResults else emptyList(),
+                            modifier = Modifier.weight(1f).imePadding(),
+                            results = if (shouldShowResults) providerResults else emptyList(),
                             onItemClick = { result -> result.onSelect?.invoke() },
                             onItemLongPress = onItemLongPress@{ result ->
                                 val target = result.aliasTarget ?: return@onItemLongPress

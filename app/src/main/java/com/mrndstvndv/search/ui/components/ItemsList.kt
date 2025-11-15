@@ -37,11 +37,13 @@ import com.mrndstvndv.search.provider.model.ProviderResult
 fun ItemsList(
     results: List<ProviderResult>,
     onItemClick: (ProviderResult) -> Unit,
-    onItemLongPress: ((ProviderResult) -> Unit)? = null
+    onItemLongPress: ((ProviderResult) -> Unit)? = null,
+    modifier: Modifier = Modifier
 ) {
     if (results.isEmpty()) return
 
     LazyColumn(
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         itemsIndexed(results) { index, item ->
