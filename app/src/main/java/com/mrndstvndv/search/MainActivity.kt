@@ -88,10 +88,13 @@ class MainActivity : ComponentActivity() {
                     }
                     results
                 }
+                val filtered = match?.entry?.target?.let { aliasTarget ->
+                    aggregated.filterNot { it.aliasTarget == aliasTarget }
+                } ?: aggregated
                 val aliasResult = match?.let { buildAliasResult(it.entry, normalizedText, webSearchSettings) }
                 providerResults.clear()
                 aliasResult?.let { providerResults.add(it) }
-                providerResults.addAll(aggregated)
+                providerResults.addAll(filtered)
             }
 
             SearchTheme {
