@@ -1,5 +1,7 @@
 package com.mrndstvndv.search.ui.components
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -27,12 +30,38 @@ fun ItemsList(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         itemsIndexed(appItems) { index, appItem ->
-            val shape = when {
-                appItems.size == 1 -> RoundedCornerShape(20.dp)
-                index == 0 -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, 5.dp, 5.dp)
-                index == appItems.lastIndex -> RoundedCornerShape(5.dp, 5.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-                else -> RoundedCornerShape(5.dp)
+            val targetTopStart = when {
+                appItems.size == 1 -> 20.dp
+                index == 0 -> 20.dp
+                else -> 5.dp
             }
+            val targetTopEnd = when {
+                appItems.size == 1 -> 20.dp
+                index == 0 -> 20.dp
+                else -> 5.dp
+            }
+            val targetBottomStart = when {
+                appItems.size == 1 -> 20.dp
+                index == appItems.lastIndex -> 20.dp
+                else -> 5.dp
+            }
+            val targetBottomEnd = when {
+                appItems.size == 1 -> 20.dp
+                index == appItems.lastIndex -> 20.dp
+                else -> 5.dp
+            }
+
+            val animatedTopStart by animateDpAsState(targetTopStart, animationSpec = tween(durationMillis = 250))
+            val animatedTopEnd by animateDpAsState(targetTopEnd, animationSpec = tween(durationMillis = 250))
+            val animatedBottomStart by animateDpAsState(targetBottomStart, animationSpec = tween(durationMillis = 250))
+            val animatedBottomEnd by animateDpAsState(targetBottomEnd, animationSpec = tween(durationMillis = 250))
+
+            val shape = RoundedCornerShape(
+                topStart = animatedTopStart,
+                topEnd = animatedTopEnd,
+                bottomEnd = animatedBottomEnd,
+                bottomStart = animatedBottomStart,
+            )
             Surface(shape = shape, tonalElevation = 1.dp) {
                 Box(
                     Modifier
