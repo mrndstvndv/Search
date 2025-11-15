@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
@@ -25,6 +24,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.mrndstvndv.search.ui.components.SearchField
 import com.mrndstvndv.search.ui.theme.SearchTheme
 import androidx.core.net.toUri
 import android.util.Patterns
@@ -71,12 +71,12 @@ class MainActivity : ComponentActivity() {
                 }.padding(top=50.dp)) {
                     Column {
                         Surface {
-                            OutlinedTextField(
+                            SearchField(
                                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                                 value = textState.value,
                                 onValueChange = { textState.value = it },
                                 singleLine = true,
-                                label = { Text("Search") },
+                                placeholder = { Text("Search") },
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                 keyboardActions = KeyboardActions(onDone = {
                                      if (filteredPackages.isNotEmpty()) {
