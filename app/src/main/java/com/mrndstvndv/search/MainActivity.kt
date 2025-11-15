@@ -28,14 +28,16 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.mrndstvndv.search.provider.apps.AppListProvider
+import com.mrndstvndv.search.provider.calculator.CalculatorProvider
+import com.mrndstvndv.search.provider.web.WebSearchProvider
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.ui.components.ItemsList
 import com.mrndstvndv.search.ui.components.SearchField
 import com.mrndstvndv.search.ui.theme.SearchTheme
+import com.mrndstvndv.search.util.CalculatorEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.pow
 
 class MainActivity : ComponentActivity() {
     private val defaultAppIconSize by lazy { resources.getDimensionPixelSize(android.R.dimen.app_icon_size) }
@@ -49,7 +51,11 @@ class MainActivity : ComponentActivity() {
             val focusRequester = remember { FocusRequester() }
 
             val providers = remember(this@MainActivity) {
-                listOf(AppListProvider(this@MainActivity, defaultAppIconSize))
+                listOf(
+                    AppListProvider(this@MainActivity, defaultAppIconSize),
+                    CalculatorProvider(this@MainActivity),
+                    WebSearchProvider(this@MainActivity)
+                )
             }
             val providerResults = remember { mutableStateListOf<ProviderResult>() }
 
@@ -69,7 +75,7 @@ class MainActivity : ComponentActivity() {
             }
 
             val calculatorResult = remember(textState.value) {
-                getCalculatorResult(textState.value)
+                CalculatorEngine.compute(textState.value)
             }
 
             SearchTheme {
@@ -100,17 +106,6 @@ class MainActivity : ComponentActivity() {
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
-
-                        Surface(shape = RoundedCornerShape(50), modifier = Modifier.fillMaxWidth().clipToBounds()) {
-                            if (calculatorResult != null) {
-                                Text(
-                                    text = "= $calculatorResult",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp)
-                                )
-                            }
-                        }
 
                         ItemsList(
                             results = providerResults,
@@ -149,99 +144,5 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             window.decorView?.let { window.setBackgroundBlurRadius(40) }
         }
-    }
-}
-
-private val expressionRegex = Regex("^[0-9+\\-*/().\\s]+$")
-
-private fun getCalculatorResult(input: String): String? {
-    val cleaned = input.trim()
-    if (cleaned.isEmpty()) return null
-    if (!expressionRegex.matches(cleaned)) return null
-    val value = evaluateExpression(cleaned) ?: return null
-    return formatCalculatorResult(value)
-}
-
-private fun formatCalculatorResult(value: Double): String =
-    "%.8f".format(value).trimEnd('0').trimEnd('.')
-
-private fun evaluateExpression(expression: String): Double? {
-    return try {
-        object {
-            var pos = -1
-            var ch = 0
-
-            fun nextChar() {
-                pos++
-                ch = if (pos < expression.length) expression[pos].code else -1
-            }
-
-            fun eat(charToEat: Int): Boolean {
-                while (ch == ' '.code) nextChar()
-                if (ch == charToEat) {
-                    nextChar()
-                    return true
-                }
-                return false
-            }
-
-            fun parse(): Double {
-                nextChar()
-                val x = parseExpression()
-                if (pos < expression.length) throw IllegalArgumentException("Unexpected: ${expression[pos]}")
-                return x
-            }
-
-            fun parseExpression(): Double {
-                var x = parseTerm()
-                while (true) {
-                    x = when {
-                        eat('+'.code) -> x + parseTerm()
-                        eat('-'.code) -> x - parseTerm()
-                        else -> return x
-                    }
-                }
-            }
-
-            fun parseTerm(): Double {
-                var x = parseFactor()
-                while (true) {
-                    x = when {
-                        eat('*'.code) -> x * parseFactor()
-                        eat('/'.code) -> x / parseFactor()
-                        else -> return x
-                    }
-                }
-            }
-
-            fun parseFactor(): Double {
-                if (eat('+'.code)) return parseFactor()
-                if (eat('-'.code)) return -parseFactor()
-
-                val startPos = pos
-                val x: Double = when {
-                    eat('('.code) -> {
-                        val inner = parseExpression()
-                        if (!eat(')'.code)) throw IllegalArgumentException("Missing closing parenthesis")
-                        inner
-                    }
-
-                    ch in '0'.code..'9'.code || ch == '.'.code -> {
-                        while (ch in '0'.code..'9'.code || ch == '.'.code) nextChar()
-                        expression.substring(startPos, pos).toDouble()
-                    }
-
-                    else -> throw IllegalArgumentException("Unexpected: ${if (ch == -1) "end" else expression[pos]}")
-                }
-
-                return if (eat('^'.code)) {
-                    x.pow(parseFactor())
-                } else {
-                    x
-                }
-            }
-        }.parse()
-    } catch (_: Exception) {
-        null
     }
 }
