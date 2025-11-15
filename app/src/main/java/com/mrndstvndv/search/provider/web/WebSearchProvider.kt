@@ -8,6 +8,7 @@ import com.mrndstvndv.search.provider.Provider
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
+import androidx.core.net.toUri
 
 class WebSearchProvider(
     private val activity: ComponentActivity,
@@ -28,23 +29,29 @@ class WebSearchProvider(
         if (cleaned.isBlank()) return emptyList()
 
         val settings = settingsRepository.webSearchSettings.value
-        val site = settings.siteForId(settings.defaultSiteId) ?: settings.sites.first()
-        val searchUrl = site.buildUrl(cleaned)
-
-        val action = {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(searchUrl))
-            activity.startActivity(intent)
-            activity.finish()
-        }
-
-        return listOf(
+        val sites = settings.sites
+        if (sites.isEmpty()) return emptyList()
+        val orderedSites = settings.siteForId(settings.defaultSiteId)?.let { defaultSite ->
+            listOf(defaultSite) + sites.filter { it.id != defaultSite.id }
+        } ?: sites
+        return orderedSites.map { site ->
+            val searchUrl = site.buildUrl(cleaned)
+            val action = {
+                val intent = Intent(Intent.ACTION_VIEW, searchUrl.toUri())
+                activity.startActivity(intent)
+                activity.finish()
+            }
             ProviderResult(
                 id = "$id:${site.id}:${cleaned.hashCode()}",
                 title = "Search \"$cleaned\"",
-                subtitle = site.displayName,
+                subtitle = if (site.id == settings.defaultSiteId) {
+                    "${site.displayName} (default)"
+                } else {
+                    site.displayName
+                },
                 providerId = id,
                 onSelect = action
             )
-        )
+        }
     }
 }
