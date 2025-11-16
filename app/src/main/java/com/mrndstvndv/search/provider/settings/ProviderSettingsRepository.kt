@@ -68,6 +68,16 @@ data class WebSearchSettings(
                 id = "google",
                 displayName = "Google",
                 urlTemplate = "https://www.google.com/search?q={query}"
+            ),
+            WebSearchSite(
+                id = "youtube",
+                displayName = "YouTube",
+                urlTemplate = "https://m.youtube.com/results?search_query={query}"
+            ),
+            WebSearchSite(
+                id = "twitter",
+                displayName = "Twitter",
+                urlTemplate = "https://x.com/search?q={query}"
             )
         )
         const val QUERY_PLACEHOLDER = "{query}"
