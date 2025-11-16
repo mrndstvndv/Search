@@ -9,6 +9,8 @@ import com.mrndstvndv.search.provider.Provider
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 // TODO: the query should be empty if a whitespace between the trigger and query is not yet made. the behavior right now is that the searchitem searches for the trigger if a query is not yet made
 class WebSearchProvider(
@@ -51,10 +53,12 @@ class WebSearchProvider(
         return visibleSites.map { site ->
             val actualQuery = if (site.id == defaultSite.id) cleaned else searchTerms
             val searchUrl = site.buildUrl(actualQuery)
-            val action = {
-                val intent = Intent(Intent.ACTION_VIEW, searchUrl.toUri())
-                activity.startActivity(intent)
-                activity.finish()
+            val action: suspend () -> Unit = {
+                withContext(Dispatchers.Main) {
+                    val intent = Intent(Intent.ACTION_VIEW, searchUrl.toUri())
+                    activity.startActivity(intent)
+                    activity.finish()
+                }
             }
             ProviderResult(
                 id = "$id:${site.id}:${actualQuery.hashCode()}",

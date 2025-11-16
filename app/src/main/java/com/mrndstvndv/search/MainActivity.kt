@@ -97,9 +97,9 @@ class MainActivity : ComponentActivity() {
             var aliasDialogValue by remember { mutableStateOf("") }
             var aliasDialogError by remember { mutableStateOf<String?>(null) }
             var isPerformingAction by remember { mutableStateOf(false) }
-            var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+            var pendingAction by remember { mutableStateOf<(suspend () -> Unit)?>(null) }
 
-            fun startPendingAction(action: (() -> Unit)?) {
+            fun startPendingAction(action: (suspend () -> Unit)?) {
                 if (action == null || isPerformingAction) return
                 isPerformingAction = true
                 pendingAction = action
@@ -263,7 +263,9 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(pendingAction) {
                 val action = pendingAction ?: return@LaunchedEffect
                 try {
-                    action()
+                    withContext(Dispatchers.Default) {
+                        action()
+                    }
                 } finally {
                     isPerformingAction = false
                     pendingAction = null
@@ -327,10 +329,12 @@ class MainActivity : ComponentActivity() {
                 val site = webSearchSettings.siteForId(target.siteId) ?: webSearchSettings.sites.firstOrNull()
                 val resolvedSite = site ?: return null
                 val searchUrl = resolvedSite.buildUrl(query)
-                val action = {
-                    val intent = Intent(Intent.ACTION_VIEW, searchUrl.toUri())
-                    startActivity(intent)
-                    finish()
+                val action: suspend () -> Unit = {
+                    withContext(Dispatchers.Main) {
+                        val intent = Intent(Intent.ACTION_VIEW, searchUrl.toUri())
+                        startActivity(intent)
+                        finish()
+                    }
                 }
                 ProviderResult(
                     id = "alias:web:${entry.alias}:${query.hashCode()}",
@@ -342,11 +346,13 @@ class MainActivity : ComponentActivity() {
                 )
             }
             is AppLaunchAliasTarget -> {
-                val action = {
-                    val launchIntent = packageManager.getLaunchIntentForPackage(target.packageName)
-                    if (launchIntent != null) {
-                        startActivity(launchIntent)
-                        finish()
+                val action: suspend () -> Unit = {
+                    withContext(Dispatchers.Main) {
+                        val launchIntent = packageManager.getLaunchIntentForPackage(target.packageName)
+                        if (launchIntent != null) {
+                            startActivity(launchIntent)
+                            finish()
+                        }
                     }
                 }
                 ProviderResult(

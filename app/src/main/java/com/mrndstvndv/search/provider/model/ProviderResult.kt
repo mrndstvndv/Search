@@ -11,6 +11,6 @@ data class ProviderResult(
     val providerId: String,
     val score: Float = 0f,
     val extras: Map<String, Any?> = emptyMap(),
-    val onSelect: (() -> Unit)? = null,
+    val onSelect: (suspend () -> Unit)? = null,
     val aliasTarget: AliasTarget? = null
 )

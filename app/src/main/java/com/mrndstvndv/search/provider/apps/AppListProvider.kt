@@ -38,11 +38,13 @@ class AppListProvider(
 
         for (entry in limited) {
             val icon = loadIcon(entry.packageName)
-            val action = {
-                val launchIntent = packageManager.getLaunchIntentForPackage(entry.packageName)
-                if (launchIntent != null) {
-                    activity.startActivity(launchIntent)
-                    activity.finish()
+            val action: suspend () -> Unit = {
+                withContext(Dispatchers.Main) {
+                    val launchIntent = packageManager.getLaunchIntentForPackage(entry.packageName)
+                    if (launchIntent != null) {
+                        activity.startActivity(launchIntent)
+                        activity.finish()
+                    }
                 }
             }
             results += ProviderResult(

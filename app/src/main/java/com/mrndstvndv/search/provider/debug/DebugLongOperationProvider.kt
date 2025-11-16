@@ -5,6 +5,9 @@ import androidx.activity.ComponentActivity
 import com.mrndstvndv.search.provider.Provider
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /**
  * Debug-only provider that surfaces an entry to intentionally block on selection.
@@ -32,9 +35,11 @@ class DebugLongOperationProvider(
         val title = "Long operation (${seconds}s)"
         val subtitle = "Blocks for ${durationMs}ms to test loading overlay"
 
-        val action = {
-            Thread.sleep(durationMs)
-            Toast.makeText(activity, "Debug wait finished (${seconds}s)", Toast.LENGTH_SHORT).show()
+        val action: suspend () -> Unit = {
+            delay(durationMs)
+            withContext(Dispatchers.Main) {
+                Toast.makeText(activity, "Debug wait finished (${seconds}s)", Toast.LENGTH_SHORT).show()
+            }
         }
 
         return listOf(

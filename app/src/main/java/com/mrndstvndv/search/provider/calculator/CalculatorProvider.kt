@@ -7,6 +7,8 @@ import com.mrndstvndv.search.provider.Provider
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.util.CalculatorEngine
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class CalculatorProvider(
     private val activity: ComponentActivity
@@ -23,9 +25,11 @@ class CalculatorProvider(
         val expression = query.trimmedText
         val result = CalculatorEngine.compute(expression) ?: return emptyList()
 
-        val action = {
-            copyToClipboard(result)
-            activity.finish()
+        val action: suspend () -> Unit = {
+            withContext(Dispatchers.Main) {
+                copyToClipboard(result)
+                activity.finish()
+            }
         }
 
         return listOf(
