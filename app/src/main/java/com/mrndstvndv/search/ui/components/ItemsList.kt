@@ -6,6 +6,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +40,7 @@ fun ItemsList(
     results: List<ProviderResult>,
     onItemClick: (ProviderResult) -> Unit,
     onItemLongPress: ((ProviderResult) -> Unit)? = null,
+    translucentItems: Boolean = false,
 ) {
     if (results.isEmpty()) return
 
@@ -81,7 +83,29 @@ fun ItemsList(
                 bottomStart = animatedBottomStart,
             )
 
-            Surface(shape = shape, tonalElevation = 1.dp) {
+            val containerColor = if (translucentItems) {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
+            val isDarkTheme = isSystemInDarkTheme()
+            val primaryTextColor = if (translucentItems) {
+                MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            }
+            val subtitleColor = if (translucentItems) {
+                val alpha = if (isDarkTheme) 0.85f else 0.75f
+                primaryTextColor.copy(alpha = alpha)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+
+            Surface(
+                shape = shape,
+                tonalElevation = if (translucentItems) 0.dp else 1.dp,
+                color = containerColor
+            ) {
                 val interactionSource = remember { MutableInteractionSource() }
                 val clickModifier = if (onItemLongPress != null) {
                     Modifier.combinedClickable(
@@ -115,11 +139,15 @@ fun ItemsList(
                         Spacer(Modifier.width(12.dp))
                     }
                     Column {
-                        Text(text = item.title)
+                        Text(
+                            text = item.title,
+                            color = primaryTextColor
+                        )
                         item.subtitle?.let { subtitle ->
                             Text(
                                 text = subtitle,
-                                style = MaterialTheme.typography.bodySmall
+                                style = MaterialTheme.typography.bodySmall,
+                                color = subtitleColor
                             )
                         }
                     }

@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,6 +35,7 @@ fun GeneralSettingsScreen(
 ) {
     val aliasEntries by aliasRepository.aliases.collectAsState()
     val webSearchSettings by settingsRepository.webSearchSettings.collectAsState()
+    val translucentResultsEnabled by settingsRepository.translucentResultsEnabled.collectAsState()
     var showWebSearchDialog by remember { mutableStateOf(false) }
 
     Surface(
@@ -72,6 +74,39 @@ fun GeneralSettingsScreen(
             Spacer(modifier = Modifier.padding(4.dp))
             Button(onClick = { showWebSearchDialog = true }) {
                 Text(text = "Edit web search sites")
+            }
+
+            Spacer(modifier = Modifier.padding(16.dp))
+            Text(
+                text = "Appearance",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "Control how the search results list is rendered.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(modifier = Modifier.padding(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Translucent results",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "Make the list items slightly see-through.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Switch(
+                    checked = translucentResultsEnabled,
+                    onCheckedChange = { checked ->
+                        settingsRepository.setTranslucentResultsEnabled(checked)
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.padding(16.dp))

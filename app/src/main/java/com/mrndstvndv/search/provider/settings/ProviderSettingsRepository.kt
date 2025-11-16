@@ -13,6 +13,7 @@ class ProviderSettingsRepository(context: Context) {
     companion object {
         private const val PREF_NAME = "provider_settings"
         private const val KEY_WEB_SEARCH = "web_search"
+        private const val KEY_TRANSLUCENT_RESULTS = "translucent_results"
     }
 
     private val preferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -20,9 +21,17 @@ class ProviderSettingsRepository(context: Context) {
     private val _webSearchSettings = MutableStateFlow(loadWebSearchSettings())
     val webSearchSettings: StateFlow<WebSearchSettings> = _webSearchSettings
 
+    private val _translucentResultsEnabled = MutableStateFlow(loadTranslucentResultsEnabled())
+    val translucentResultsEnabled: StateFlow<Boolean> = _translucentResultsEnabled
+
     fun saveWebSearchSettings(settings: WebSearchSettings) {
         preferences.edit { putString(KEY_WEB_SEARCH, settings.toJsonString()) }
         _webSearchSettings.value = settings
+    }
+
+    fun setTranslucentResultsEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_TRANSLUCENT_RESULTS, enabled) }
+        _translucentResultsEnabled.value = enabled
     }
 
     private fun loadWebSearchSettings(): WebSearchSettings {
@@ -32,6 +41,10 @@ class ProviderSettingsRepository(context: Context) {
         } catch (ignored: JSONException) {
             WebSearchSettings.default()
         }
+    }
+
+    private fun loadTranslucentResultsEnabled(): Boolean {
+        return preferences.getBoolean(KEY_TRANSLUCENT_RESULTS, false)
     }
 }
 

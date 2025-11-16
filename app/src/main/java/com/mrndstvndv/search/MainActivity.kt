@@ -80,6 +80,7 @@ class MainActivity : ComponentActivity() {
             val aliasRepository = remember(this@MainActivity) { AliasRepository(this@MainActivity) }
             val aliasEntries by aliasRepository.aliases.collectAsState()
             val webSearchSettings by settingsRepository.webSearchSettings.collectAsState()
+            val translucentResultsEnabled by settingsRepository.translucentResultsEnabled.collectAsState()
 
             val providers = remember(this@MainActivity) {
                 buildList {
@@ -141,6 +142,7 @@ class MainActivity : ComponentActivity() {
                 Box(
                     Modifier
                         .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp).copy(alpha = 0.35f))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -229,7 +231,8 @@ class MainActivity : ComponentActivity() {
                                         suggestion = suggestion,
                                         description = result.subtitle ?: result.title
                                     )
-                                }
+                                },
+                                translucentItems = translucentResultsEnabled
                             )
                         }
                     }
