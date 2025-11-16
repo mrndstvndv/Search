@@ -16,11 +16,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
@@ -84,6 +87,14 @@ class MainActivity : ComponentActivity() {
             var aliasDialogCandidate by remember { mutableStateOf<AliasCreationCandidate?>(null) }
             var aliasDialogValue by remember { mutableStateOf("") }
             var aliasDialogError by remember { mutableStateOf<String?>(null) }
+            var isPerformingAction by remember { mutableStateOf(false) }
+            var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+            fun startPendingAction(action: (() -> Unit)?) {
+                if (action == null || isPerformingAction) return
+                isPerformingAction = true
+                pendingAction = action
+            }
 
             LaunchedEffect(textState.value, aliasEntries, webSearchSettings) {
                 val match = aliasRepository.matchAlias(textState.value)
@@ -144,7 +155,10 @@ class MainActivity : ComponentActivity() {
                                 placeholder = { Text("Search") },
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                 keyboardActions = KeyboardActions(onDone = {
-                                    providerResults.firstOrNull()?.onSelect?.invoke() ?: run {
+                                    val primaryAction = providerResults.firstOrNull()?.onSelect
+                                    if (primaryAction != null) {
+                                        startPendingAction(primaryAction)
+                                    } else {
                                         val query = textState.value.trim()
                                         if (query.isNotEmpty()) {
                                             handleQuerySubmission(query)
@@ -192,7 +206,7 @@ class MainActivity : ComponentActivity() {
                             ItemsList(
                                 modifier = Modifier.fillMaxSize(),
                                 results = providerResults,
-                                onItemClick = { result -> result.onSelect?.invoke() },
+                                onItemClick = { result -> startPendingAction(result.onSelect) },
                                 onItemLongPress = onItemLongPress@{ result ->
                                     val target = result.aliasTarget ?: return@onItemLongPress
                                     val suggestion = sanitizeAliasSuggestion(result.title)
@@ -207,6 +221,32 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+
+                    if (isPerformingAction) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { }
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
+                    }
+                }
+            }
+
+            LaunchedEffect(pendingAction) {
+                val action = pendingAction ?: return@LaunchedEffect
+                try {
+                    action()
+                } finally {
+                    isPerformingAction = false
+                    pendingAction = null
                 }
             }
 
