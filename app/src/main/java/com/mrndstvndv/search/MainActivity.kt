@@ -20,6 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -27,6 +28,7 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,6 +43,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import com.mrndstvndv.search.BuildConfig
 import com.mrndstvndv.search.alias.AliasCreationCandidate
 import com.mrndstvndv.search.alias.AliasEntry
 import com.mrndstvndv.search.alias.AliasRepository
@@ -48,6 +51,7 @@ import com.mrndstvndv.search.alias.AppLaunchAliasTarget
 import com.mrndstvndv.search.alias.WebSearchAliasTarget
 import com.mrndstvndv.search.provider.apps.AppListProvider
 import com.mrndstvndv.search.provider.calculator.CalculatorProvider
+import com.mrndstvndv.search.provider.debug.DebugLongOperationProvider
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
@@ -77,11 +81,14 @@ class MainActivity : ComponentActivity() {
             val webSearchSettings by settingsRepository.webSearchSettings.collectAsState()
 
             val providers = remember(this@MainActivity) {
-                listOf(
-                    AppListProvider(this@MainActivity, defaultAppIconSize),
-                    CalculatorProvider(this@MainActivity),
-                    WebSearchProvider(this@MainActivity, settingsRepository)
-                )
+                buildList {
+                    add(AppListProvider(this@MainActivity, defaultAppIconSize))
+                    add(CalculatorProvider(this@MainActivity))
+                    add(WebSearchProvider(this@MainActivity, settingsRepository))
+                    if (BuildConfig.DEBUG) {
+                        add(DebugLongOperationProvider(this@MainActivity))
+                    }
+                }
             }
             val providerResults = remember { mutableStateListOf<ProviderResult>() }
             var shouldShowResults by remember { mutableStateOf(false) }
@@ -228,17 +235,26 @@ class MainActivity : ComponentActivity() {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) { }
                         ) {
-                            LoadingIndicator(
+                            Box(
                                 modifier = Modifier
                                     .align(Alignment.Center)
-                                    .size(72.dp)
-                            )
+                                    .background(
+                                        color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
+                                            .copy(alpha = 0.95f),
+                                        shape = RoundedCornerShape(28.dp)
+                                    )
+                                    .padding(horizontal = 28.dp, vertical = 24.dp)
+                            ) {
+                                LoadingIndicator(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                )
+                            }
                         }
                     }
                 }
