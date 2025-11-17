@@ -81,6 +81,7 @@ class MainActivity : ComponentActivity() {
             val aliasEntries by aliasRepository.aliases.collectAsState()
             val webSearchSettings by settingsRepository.webSearchSettings.collectAsState()
             val translucentResultsEnabled by settingsRepository.translucentResultsEnabled.collectAsState()
+            val blurStrength by settingsRepository.blurStrength.collectAsState()
 
             val providers = remember(this@MainActivity) {
                 buildList {
@@ -328,8 +329,10 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(Unit) {
                 focusRequester.requestFocus()
             }
+            LaunchedEffect(blurStrength) {
+                applyWindowBlur(blurStrength)
+            }
         }
-        applyWindowBlur()
     }
 
     private fun handleQuerySubmission(query: String) {
@@ -403,9 +406,9 @@ class MainActivity : ComponentActivity() {
         return normalized.ifBlank { "alias" }
     }
 
-    private fun applyWindowBlur() {
+    private fun applyWindowBlur(blurStrength: Float) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            window.decorView?.let { window.setBackgroundBlurRadius(40) }
+            window.decorView?.let { window.setBackgroundBlurRadius((blurStrength * 100).toInt()) }
         }
     }
 }

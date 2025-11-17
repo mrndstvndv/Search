@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Switch
@@ -36,6 +37,7 @@ fun GeneralSettingsScreen(
     val aliasEntries by aliasRepository.aliases.collectAsState()
     val webSearchSettings by settingsRepository.webSearchSettings.collectAsState()
     val translucentResultsEnabled by settingsRepository.translucentResultsEnabled.collectAsState()
+    val blurStrength by settingsRepository.blurStrength.collectAsState()
     var showWebSearchDialog by remember { mutableStateOf(false) }
 
     Surface(
@@ -105,6 +107,29 @@ fun GeneralSettingsScreen(
                     checked = translucentResultsEnabled,
                     onCheckedChange = { checked ->
                         settingsRepository.setTranslucentResultsEnabled(checked)
+                    }
+                )
+            }
+            Spacer(modifier = Modifier.padding(8.dp))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Blur strength",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = "${(blurStrength * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+                Slider(
+                    value = blurStrength,
+                    onValueChange = { strength ->
+                        settingsRepository.setBlurStrength(strength)
                     }
                 )
             }
