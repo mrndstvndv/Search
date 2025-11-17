@@ -64,8 +64,13 @@ import com.mrndstvndv.search.ui.theme.SearchTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        private const val MAX_BACKGROUND_BLUR_RADIUS = 80
+    }
+
     private val defaultAppIconSize by lazy { resources.getDimensionPixelSize(android.R.dimen.app_icon_size) }
 
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -82,6 +87,11 @@ class MainActivity : ComponentActivity() {
             val webSearchSettings by settingsRepository.webSearchSettings.collectAsState()
             val translucentResultsEnabled by settingsRepository.translucentResultsEnabled.collectAsState()
             val backgroundOpacity by settingsRepository.backgroundOpacity.collectAsState()
+            val backgroundBlurStrength by settingsRepository.backgroundBlurStrength.collectAsState()
+
+            LaunchedEffect(backgroundBlurStrength) {
+                applyWindowBlur(backgroundBlurStrength)
+            }
 
             val providers = remember(this@MainActivity) {
                 buildList {
@@ -330,7 +340,6 @@ class MainActivity : ComponentActivity() {
                 focusRequester.requestFocus()
             }
         }
-        applyWindowBlur()
     }
 
     private fun handleQuerySubmission(query: String) {
@@ -404,9 +413,10 @@ class MainActivity : ComponentActivity() {
         return normalized.ifBlank { "alias" }
     }
 
-    private fun applyWindowBlur() {
+    private fun applyWindowBlur(strength: Float) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            window.decorView?.let { window.setBackgroundBlurRadius(40) }
+            val radius = (strength.coerceIn(0f, 1f) * MAX_BACKGROUND_BLUR_RADIUS).roundToInt()
+            window.decorView?.let { window.setBackgroundBlurRadius(radius) }
         }
     }
 }

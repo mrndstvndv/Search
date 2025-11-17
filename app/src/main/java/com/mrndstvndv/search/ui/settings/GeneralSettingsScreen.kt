@@ -39,6 +39,7 @@ fun GeneralSettingsScreen(
     val webSearchSettings by settingsRepository.webSearchSettings.collectAsState()
     val translucentResultsEnabled by settingsRepository.translucentResultsEnabled.collectAsState()
     val backgroundOpacity by settingsRepository.backgroundOpacity.collectAsState()
+    val backgroundBlurStrength by settingsRepository.backgroundBlurStrength.collectAsState()
     var showWebSearchDialog by remember { mutableStateOf(false) }
 
     Surface(
@@ -137,6 +138,38 @@ fun GeneralSettingsScreen(
                 Slider(
                     value = backgroundOpacity,
                     onValueChange = { settingsRepository.setBackgroundOpacity(it) },
+                    valueRange = 0f..1f,
+                    steps = 9,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(modifier = Modifier.padding(12.dp))
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Background blur strength",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = "Adjust how strong the wallpaper blur looks behind the app.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Text(
+                        text = "${(backgroundBlurStrength * 100).roundToInt()}%"
+                    )
+                }
+                Slider(
+                    value = backgroundBlurStrength,
+                    onValueChange = { settingsRepository.setBackgroundBlurStrength(it) },
                     valueRange = 0f..1f,
                     steps = 9,
                     modifier = Modifier.fillMaxWidth()

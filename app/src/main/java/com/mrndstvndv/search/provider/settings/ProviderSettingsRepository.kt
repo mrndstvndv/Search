@@ -15,7 +15,9 @@ class ProviderSettingsRepository(context: Context) {
         private const val KEY_WEB_SEARCH = "web_search"
         private const val KEY_TRANSLUCENT_RESULTS = "translucent_results"
         private const val KEY_BACKGROUND_OPACITY = "background_opacity"
+        private const val KEY_BACKGROUND_BLUR_STRENGTH = "background_blur_strength"
         private const val DEFAULT_BACKGROUND_OPACITY = 0.35f
+        private const val DEFAULT_BACKGROUND_BLUR_STRENGTH = 0.5f
     }
 
     private val preferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -28,6 +30,9 @@ class ProviderSettingsRepository(context: Context) {
 
     private val _backgroundOpacity = MutableStateFlow(loadBackgroundOpacity())
     val backgroundOpacity: StateFlow<Float> = _backgroundOpacity
+
+    private val _backgroundBlurStrength = MutableStateFlow(loadBackgroundBlurStrength())
+    val backgroundBlurStrength: StateFlow<Float> = _backgroundBlurStrength
 
     fun saveWebSearchSettings(settings: WebSearchSettings) {
         preferences.edit { putString(KEY_WEB_SEARCH, settings.toJsonString()) }
@@ -45,6 +50,12 @@ class ProviderSettingsRepository(context: Context) {
         _backgroundOpacity.value = coercedAlpha
     }
 
+    fun setBackgroundBlurStrength(strength: Float) {
+        val coercedStrength = strength.coerceIn(0f, 1f)
+        preferences.edit { putFloat(KEY_BACKGROUND_BLUR_STRENGTH, coercedStrength) }
+        _backgroundBlurStrength.value = coercedStrength
+    }
+
     private fun loadWebSearchSettings(): WebSearchSettings {
         val json = preferences.getString(KEY_WEB_SEARCH, null) ?: return WebSearchSettings.default()
         return try {
@@ -60,6 +71,10 @@ class ProviderSettingsRepository(context: Context) {
 
     private fun loadBackgroundOpacity(): Float {
         return preferences.getFloat(KEY_BACKGROUND_OPACITY, DEFAULT_BACKGROUND_OPACITY)
+    }
+
+    private fun loadBackgroundBlurStrength(): Float {
+        return preferences.getFloat(KEY_BACKGROUND_BLUR_STRENGTH, DEFAULT_BACKGROUND_BLUR_STRENGTH)
     }
 }
 
