@@ -14,7 +14,7 @@ sealed interface AliasTarget {
 
         fun fromJson(json: JSONObject?): AliasTarget? {
             if (json == null) return null
-            val type = json.optString(KEY_TYPE, null) ?: return null
+            val type = json.optString(KEY_TYPE).takeIf { it.isNotBlank() } ?: return null
             return when (type) {
                 TYPE_WEB_SEARCH -> WebSearchAliasTarget.fromJson(json)
                 TYPE_APP_LAUNCH -> AppLaunchAliasTarget.fromJson(json)
@@ -36,7 +36,7 @@ data class AliasEntry(
 
         fun fromJson(json: JSONObject?): AliasEntry? {
             if (json == null) return null
-            val alias = json.optString(KEY_ALIAS, null) ?: return null
+            val alias = json.optString(KEY_ALIAS).takeIf { it.isNotBlank() } ?: return null
             val target = AliasTarget.fromJson(json.optJSONObject(KEY_TARGET)) ?: return null
             val createdAt = json.optLong(KEY_CREATED_AT, System.currentTimeMillis())
             return AliasEntry(alias, target, createdAt)
@@ -84,8 +84,8 @@ data class WebSearchAliasTarget(
 
         fun fromJson(json: JSONObject?): WebSearchAliasTarget? {
             if (json == null) return null
-            val siteId = json.optString("siteId", null) ?: return null
-            val displayName = json.optString("displayName", null) ?: return null
+            val siteId = json.optString("siteId").takeIf { it.isNotBlank() } ?: return null
+            val displayName = json.optString("displayName").takeIf { it.isNotBlank() } ?: return null
             return WebSearchAliasTarget(siteId, displayName)
         }
     }
@@ -112,8 +112,8 @@ data class AppLaunchAliasTarget(
 
         fun fromJson(json: JSONObject?): AppLaunchAliasTarget? {
             if (json == null) return null
-            val packageName = json.optString("packageName", null) ?: return null
-            val label = json.optString("label", null) ?: return null
+            val packageName = json.optString("packageName").takeIf { it.isNotBlank() } ?: return null
+            val label = json.optString("label").takeIf { it.isNotBlank() } ?: return null
             return AppLaunchAliasTarget(packageName, label)
         }
     }
