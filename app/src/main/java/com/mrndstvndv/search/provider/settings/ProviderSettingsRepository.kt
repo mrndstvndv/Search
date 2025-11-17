@@ -166,9 +166,9 @@ data class WebSearchSite(
     companion object {
         fun fromJson(json: JSONObject?): WebSearchSite? {
             if (json == null) return null
-            val id = json.optString("id", null) ?: return null
-            val name = json.optString("displayName", null) ?: return null
-            val template = json.optString("urlTemplate", null) ?: return null
+            val id = json.opt("id") as? String ?: return null
+            val name = json.opt("displayName") as? String ?: return null
+            val template = json.opt("urlTemplate") as? String ?: return null
             return WebSearchSite(id = id, displayName = name, urlTemplate = template)
         }
     }
