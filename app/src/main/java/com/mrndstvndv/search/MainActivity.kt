@@ -89,6 +89,7 @@ class MainActivity : ComponentActivity() {
             val translucentResultsEnabled by settingsRepository.translucentResultsEnabled.collectAsState()
             val backgroundOpacity by settingsRepository.backgroundOpacity.collectAsState()
             val backgroundBlurStrength by settingsRepository.backgroundBlurStrength.collectAsState()
+            val activityIndicatorDelayMs by settingsRepository.activityIndicatorDelayMs.collectAsState()
 
             LaunchedEffect(backgroundBlurStrength) {
                 applyWindowBlur(backgroundBlurStrength)
@@ -286,10 +287,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            LaunchedEffect(isPerformingAction) {
+            LaunchedEffect(isPerformingAction, activityIndicatorDelayMs) {
                 if (isPerformingAction) {
                     showLoadingOverlay = false
-                    delay(100)
+                    val delayDuration = activityIndicatorDelayMs.coerceAtLeast(0)
+                    if (delayDuration > 0) {
+                        delay(delayDuration.toLong())
+                    }
                     if (isPerformingAction) {
                         showLoadingOverlay = true
                     }

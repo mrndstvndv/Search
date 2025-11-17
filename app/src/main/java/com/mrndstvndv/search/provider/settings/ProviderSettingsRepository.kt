@@ -16,8 +16,11 @@ class ProviderSettingsRepository(context: Context) {
         private const val KEY_TRANSLUCENT_RESULTS = "translucent_results"
         private const val KEY_BACKGROUND_OPACITY = "background_opacity"
         private const val KEY_BACKGROUND_BLUR_STRENGTH = "background_blur_strength"
+        private const val KEY_ACTIVITY_INDICATOR_DELAY_MS = "activity_indicator_delay_ms"
         private const val DEFAULT_BACKGROUND_OPACITY = 0.35f
         private const val DEFAULT_BACKGROUND_BLUR_STRENGTH = 0.5f
+        private const val DEFAULT_ACTIVITY_INDICATOR_DELAY_MS = 150
+        private const val MAX_ACTIVITY_INDICATOR_DELAY_MS = 1000
     }
 
     private val preferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -33,6 +36,9 @@ class ProviderSettingsRepository(context: Context) {
 
     private val _backgroundBlurStrength = MutableStateFlow(loadBackgroundBlurStrength())
     val backgroundBlurStrength: StateFlow<Float> = _backgroundBlurStrength
+
+    private val _activityIndicatorDelayMs = MutableStateFlow(loadActivityIndicatorDelayMs())
+    val activityIndicatorDelayMs: StateFlow<Int> = _activityIndicatorDelayMs
 
     fun saveWebSearchSettings(settings: WebSearchSettings) {
         preferences.edit { putString(KEY_WEB_SEARCH, settings.toJsonString()) }
@@ -56,6 +62,12 @@ class ProviderSettingsRepository(context: Context) {
         _backgroundBlurStrength.value = coercedStrength
     }
 
+    fun setActivityIndicatorDelayMs(delayMs: Int) {
+        val coercedDelay = delayMs.coerceIn(0, MAX_ACTIVITY_INDICATOR_DELAY_MS)
+        preferences.edit { putInt(KEY_ACTIVITY_INDICATOR_DELAY_MS, coercedDelay) }
+        _activityIndicatorDelayMs.value = coercedDelay
+    }
+
     private fun loadWebSearchSettings(): WebSearchSettings {
         val json = preferences.getString(KEY_WEB_SEARCH, null) ?: return WebSearchSettings.default()
         return try {
@@ -75,6 +87,11 @@ class ProviderSettingsRepository(context: Context) {
 
     private fun loadBackgroundBlurStrength(): Float {
         return preferences.getFloat(KEY_BACKGROUND_BLUR_STRENGTH, DEFAULT_BACKGROUND_BLUR_STRENGTH)
+    }
+
+    private fun loadActivityIndicatorDelayMs(): Int {
+        val stored = preferences.getInt(KEY_ACTIVITY_INDICATOR_DELAY_MS, DEFAULT_ACTIVITY_INDICATOR_DELAY_MS)
+        return stored.coerceIn(0, MAX_ACTIVITY_INDICATOR_DELAY_MS)
     }
 }
 

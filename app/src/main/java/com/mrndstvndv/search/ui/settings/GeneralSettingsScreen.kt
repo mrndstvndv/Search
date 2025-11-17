@@ -54,6 +54,7 @@ fun GeneralSettingsScreen(
     val translucentResultsEnabled by settingsRepository.translucentResultsEnabled.collectAsState()
     val backgroundOpacity by settingsRepository.backgroundOpacity.collectAsState()
     val backgroundBlurStrength by settingsRepository.backgroundBlurStrength.collectAsState()
+    val activityIndicatorDelayMs by settingsRepository.activityIndicatorDelayMs.collectAsState()
     var showWebSearchDialog by remember { mutableStateOf(false) }
 
     Box(
@@ -123,6 +124,25 @@ fun GeneralSettingsScreen(
                             valueText = "${(backgroundBlurStrength * 100).roundToInt()}%",
                             value = backgroundBlurStrength,
                             onValueChange = { settingsRepository.setBackgroundBlurStrength(it) }
+                        )
+                    }
+                }
+            }
+
+            item {
+                SettingsSection(
+                    title = "Behavior",
+                    subtitle = "Adjust how quickly Search reacts to your actions."
+                ) {
+                    SettingsCardGroup {
+                        SettingsSliderRow(
+                            title = "Activity indicator delay",
+                            subtitle = "Wait time before showing the loading spinner.",
+                            valueText = "${activityIndicatorDelayMs} ms",
+                            value = activityIndicatorDelayMs.toFloat(),
+                            onValueChange = { settingsRepository.setActivityIndicatorDelayMs(it.roundToInt()) },
+                            valueRange = 0f..1000f,
+                            steps = 19
                         )
                     }
                 }
@@ -326,7 +346,9 @@ private fun SettingsSliderRow(
     subtitle: String,
     valueText: String,
     value: Float,
-    onValueChange: (Float) -> Unit
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    steps: Int = 9
 ) {
     Column(
         modifier = Modifier
@@ -360,8 +382,8 @@ private fun SettingsSliderRow(
                 .padding(top = 12.dp),
             value = value,
             onValueChange = onValueChange,
-            valueRange = 0f..1f,
-            steps = 9
+            valueRange = valueRange,
+            steps = steps
         )
     }
 }
