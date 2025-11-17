@@ -90,6 +90,7 @@ class MainActivity : ComponentActivity() {
             val backgroundOpacity by settingsRepository.backgroundOpacity.collectAsState()
             val backgroundBlurStrength by settingsRepository.backgroundBlurStrength.collectAsState()
             val activityIndicatorDelayMs by settingsRepository.activityIndicatorDelayMs.collectAsState()
+            val animationsEnabled by settingsRepository.animationsEnabled.collectAsState()
 
             LaunchedEffect(backgroundBlurStrength) {
                 applyWindowBlur(backgroundBlurStrength)
@@ -149,7 +150,8 @@ class MainActivity : ComponentActivity() {
                 val hasVisibleResults = shouldShowResults && providerResults.isNotEmpty()
                 val spacerWeight by animateFloatAsState(
                     targetValue = if (hasVisibleResults) 0.01f else 1f,
-                    animationSpec = tween(durationMillis = 300)
+                    animationSpec = tween(durationMillis = if (animationsEnabled) 300 else 0),
+                    label = "resultsSpacer"
                 )
 
                 val tintedPrimaryBackground = lerp(
@@ -219,21 +221,23 @@ class MainActivity : ComponentActivity() {
                             Spacer(Modifier.weight(spacerWeight))
                         }
 
+                        val listEnterDuration = if (animationsEnabled) 250 else 0
+                        val listExitDuration = if (animationsEnabled) 200 else 0
                         AnimatedVisibility(
                             visible = hasVisibleResults,
                             modifier = Modifier
                                 .weight(if (hasVisibleResults) 1f else 0.01f)
                                 .imePadding()
                                 .padding(bottom = 8.dp),
-                            enter = fadeIn(animationSpec = tween(durationMillis = 250)) +
+                            enter = fadeIn(animationSpec = tween(durationMillis = listEnterDuration)) +
                                     expandVertically(
                                         expandFrom = Alignment.Top,
-                                        animationSpec = tween(durationMillis = 250)
+                                        animationSpec = tween(durationMillis = listEnterDuration)
                                     ),
-                            exit = fadeOut(animationSpec = tween(durationMillis = 200)) +
+                            exit = fadeOut(animationSpec = tween(durationMillis = listExitDuration)) +
                                     shrinkVertically(
                                         shrinkTowards = Alignment.Top,
-                                        animationSpec = tween(durationMillis = 200)
+                                        animationSpec = tween(durationMillis = listExitDuration)
                                     )
                         ) {
                             ItemsList(
@@ -251,7 +255,8 @@ class MainActivity : ComponentActivity() {
                                         description = result.subtitle ?: result.title
                                     )
                                 },
-                                translucentItems = translucentResultsEnabled
+                                translucentItems = translucentResultsEnabled,
+                                animationsEnabled = animationsEnabled
                             )
                         }
                     }

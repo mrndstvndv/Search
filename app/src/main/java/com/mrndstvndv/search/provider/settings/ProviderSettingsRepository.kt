@@ -17,10 +17,12 @@ class ProviderSettingsRepository(context: Context) {
         private const val KEY_BACKGROUND_OPACITY = "background_opacity"
         private const val KEY_BACKGROUND_BLUR_STRENGTH = "background_blur_strength"
         private const val KEY_ACTIVITY_INDICATOR_DELAY_MS = "activity_indicator_delay_ms"
+        private const val KEY_ANIMATIONS_ENABLED = "animations_enabled"
         private const val DEFAULT_BACKGROUND_OPACITY = 0.35f
         private const val DEFAULT_BACKGROUND_BLUR_STRENGTH = 0.5f
-        private const val DEFAULT_ACTIVITY_INDICATOR_DELAY_MS = 150
+        private const val DEFAULT_ACTIVITY_INDICATOR_DELAY_MS = 250
         private const val MAX_ACTIVITY_INDICATOR_DELAY_MS = 1000
+        private const val DEFAULT_ANIMATIONS_ENABLED = true
     }
 
     private val preferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -39,6 +41,9 @@ class ProviderSettingsRepository(context: Context) {
 
     private val _activityIndicatorDelayMs = MutableStateFlow(loadActivityIndicatorDelayMs())
     val activityIndicatorDelayMs: StateFlow<Int> = _activityIndicatorDelayMs
+
+    private val _animationsEnabled = MutableStateFlow(loadAnimationsEnabled())
+    val animationsEnabled: StateFlow<Boolean> = _animationsEnabled
 
     fun saveWebSearchSettings(settings: WebSearchSettings) {
         preferences.edit { putString(KEY_WEB_SEARCH, settings.toJsonString()) }
@@ -68,6 +73,11 @@ class ProviderSettingsRepository(context: Context) {
         _activityIndicatorDelayMs.value = coercedDelay
     }
 
+    fun setAnimationsEnabled(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_ANIMATIONS_ENABLED, enabled) }
+        _animationsEnabled.value = enabled
+    }
+
     private fun loadWebSearchSettings(): WebSearchSettings {
         val json = preferences.getString(KEY_WEB_SEARCH, null) ?: return WebSearchSettings.default()
         return try {
@@ -92,6 +102,10 @@ class ProviderSettingsRepository(context: Context) {
     private fun loadActivityIndicatorDelayMs(): Int {
         val stored = preferences.getInt(KEY_ACTIVITY_INDICATOR_DELAY_MS, DEFAULT_ACTIVITY_INDICATOR_DELAY_MS)
         return stored.coerceIn(0, MAX_ACTIVITY_INDICATOR_DELAY_MS)
+    }
+
+    private fun loadAnimationsEnabled(): Boolean {
+        return preferences.getBoolean(KEY_ANIMATIONS_ENABLED, DEFAULT_ANIMATIONS_ENABLED)
     }
 }
 

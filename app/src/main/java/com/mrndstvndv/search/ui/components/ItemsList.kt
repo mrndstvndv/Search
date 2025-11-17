@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.mrndstvndv.search.provider.model.ProviderResult
@@ -42,6 +43,7 @@ fun ItemsList(
     onItemClick: (ProviderResult) -> Unit,
     onItemLongPress: ((ProviderResult) -> Unit)? = null,
     translucentItems: Boolean = false,
+    animationsEnabled: Boolean = true,
 ) {
     if (results.isEmpty()) return
 
@@ -72,10 +74,11 @@ fun ItemsList(
                 else -> 5.dp
             }
 
-            val animatedTopStart by animateDpAsState(targetTopStart, animationSpec = tween(durationMillis = 250))
-            val animatedTopEnd by animateDpAsState(targetTopEnd, animationSpec = tween(durationMillis = 250))
-            val animatedBottomStart by animateDpAsState(targetBottomStart, animationSpec = tween(durationMillis = 250))
-            val animatedBottomEnd by animateDpAsState(targetBottomEnd, animationSpec = tween(durationMillis = 250))
+            val cornerAnimationSpec = tween<Dp>(durationMillis = if (animationsEnabled) 250 else 0)
+            val animatedTopStart by animateDpAsState(targetTopStart, animationSpec = cornerAnimationSpec, label = "shapeTopStart")
+            val animatedTopEnd by animateDpAsState(targetTopEnd, animationSpec = cornerAnimationSpec, label = "shapeTopEnd")
+            val animatedBottomStart by animateDpAsState(targetBottomStart, animationSpec = cornerAnimationSpec, label = "shapeBottomStart")
+            val animatedBottomEnd by animateDpAsState(targetBottomEnd, animationSpec = cornerAnimationSpec, label = "shapeBottomEnd")
 
             val shape = RoundedCornerShape(
                 topStart = animatedTopStart,

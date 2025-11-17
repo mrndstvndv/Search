@@ -55,6 +55,7 @@ fun GeneralSettingsScreen(
     val backgroundOpacity by settingsRepository.backgroundOpacity.collectAsState()
     val backgroundBlurStrength by settingsRepository.backgroundBlurStrength.collectAsState()
     val activityIndicatorDelayMs by settingsRepository.activityIndicatorDelayMs.collectAsState()
+    val animationsEnabled by settingsRepository.animationsEnabled.collectAsState()
     var showWebSearchDialog by remember { mutableStateOf(false) }
 
     Box(
@@ -135,6 +136,13 @@ fun GeneralSettingsScreen(
                     subtitle = "Adjust how quickly Search reacts to your actions."
                 ) {
                     SettingsCardGroup {
+                        SettingsToggleRow(
+                            title = "Enable animations",
+                            subtitle = "Turn off to remove most in-app transitions.",
+                            checked = animationsEnabled,
+                            onCheckedChange = { settingsRepository.setAnimationsEnabled(it) }
+                        )
+                        SettingsDivider()
                         SettingsSliderRow(
                             title = "Activity indicator delay",
                             subtitle = "Wait time before showing the loading spinner.",
