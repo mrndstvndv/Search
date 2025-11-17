@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +44,9 @@ import kotlin.math.roundToInt
 fun GeneralSettingsScreen(
     aliasRepository: AliasRepository,
     settingsRepository: ProviderSettingsRepository,
+    appName: String,
+    isDefaultAssistant: Boolean,
+    onRequestSetDefaultAssistant: () -> Unit,
     onClose: () -> Unit
 ) {
     val aliasEntries by aliasRepository.aliases.collectAsState()
@@ -66,6 +70,15 @@ fun GeneralSettingsScreen(
         ) {
             item {
                 SettingsHeader(onClose = onClose)
+            }
+
+            if (!isDefaultAssistant) {
+                item {
+                    DefaultAssistantCard(
+                        appName = appName,
+                        onRequestSetDefaultAssistant = onRequestSetDefaultAssistant
+                    )
+                }
             }
 
             item {
@@ -391,4 +404,35 @@ private fun SettingsDivider() {
         modifier = Modifier.padding(horizontal = 20.dp),
         color = MaterialTheme.colorScheme.outlineVariant
     )
+}
+
+@Composable
+private fun DefaultAssistantCard(
+    appName: String,
+    onRequestSetDefaultAssistant: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        tonalElevation = 4.dp,
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Set $appName as the default assistant",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "$appName can open instantly from the system assistant gesture.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Button(onClick = onRequestSetDefaultAssistant) {
+                Text(text = "Set as default")
+            }
+        }
+    }
 }
