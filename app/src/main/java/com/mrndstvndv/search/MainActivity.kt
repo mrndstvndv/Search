@@ -41,7 +41,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.mrndstvndv.search.BuildConfig
@@ -57,6 +59,7 @@ import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
 import com.mrndstvndv.search.provider.settings.WebSearchSettings
+import com.mrndstvndv.search.provider.text.TextUtilitiesProvider
 import com.mrndstvndv.search.provider.web.WebSearchProvider
 import com.mrndstvndv.search.ui.components.ItemsList
 import com.mrndstvndv.search.ui.components.SearchField
@@ -80,7 +83,7 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            val textState = remember { mutableStateOf("") }
+            val textState = remember { mutableStateOf(TextFieldValue("")) }
             val focusRequester = remember { FocusRequester() }
             val settingsRepository = remember(this@MainActivity) { ProviderSettingsRepository(this@MainActivity) }
             val aliasRepository = remember(this@MainActivity) { AliasRepository(this@MainActivity) }
@@ -100,6 +103,7 @@ class MainActivity : ComponentActivity() {
                 buildList {
                     add(AppListProvider(this@MainActivity, defaultAppIconSize))
                     add(CalculatorProvider(this@MainActivity))
+                    add(TextUtilitiesProvider(this@MainActivity, settingsRepository))
                     add(WebSearchProvider(this@MainActivity, settingsRepository))
                     if (BuildConfig.DEBUG) {
                         add(DebugLongOperationProvider(this@MainActivity))
@@ -123,10 +127,35 @@ class MainActivity : ComponentActivity() {
                 pendingAction = PendingAction(action, result.keepOverlayUntilExit)
             }
 
-            LaunchedEffect(textState.value, aliasEntries, webSearchSettings) {
-                val match = aliasRepository.matchAlias(textState.value)
-                val normalizedText = match?.remainingQuery ?: textState.value
-                val query = Query(normalizedText, originalText = textState.value)
+            fun ensureTrailingSpace(input: String): String {
+                val trimmed = input.trimEnd()
+                return if (trimmed.isEmpty()) " " else "$trimmed "
+            }
+
+            fun handleResultSelection(result: ProviderResult?): Boolean {
+                val candidate = result ?: return false
+                val prefillQuery = candidate.extras[TextUtilitiesProvider.PREFILL_QUERY_EXTRA] as? String
+                if (prefillQuery != null) {
+                    val completedPrefill = ensureTrailingSpace(prefillQuery)
+                    textState.value = TextFieldValue(
+                        text = completedPrefill,
+                        selection = TextRange(completedPrefill.length)
+                    )
+                    shouldShowResults = true
+                    return true
+                }
+                if (candidate.onSelect != null) {
+                    startPendingAction(candidate)
+                    return true
+                }
+                return false
+            }
+
+            LaunchedEffect(textState.value.text, aliasEntries, webSearchSettings) {
+                val currentText = textState.value.text
+                val match = aliasRepository.matchAlias(currentText)
+                val normalizedText = match?.remainingQuery ?: currentText
+                val query = Query(normalizedText, originalText = currentText)
                 val aggregated = withContext(Dispatchers.Default) {
                     val results = mutableListOf<ProviderResult>()
                     providers.forEach { provider ->
@@ -191,10 +220,9 @@ class MainActivity : ComponentActivity() {
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                 keyboardActions = KeyboardActions(onDone = {
                                     val primaryResult = providerResults.firstOrNull()
-                                    if (primaryResult?.onSelect != null) {
-                                        startPendingAction(primaryResult)
-                                    } else {
-                                        val query = textState.value.trim()
+                                    val handled = handleResultSelection(primaryResult)
+                                    if (!handled) {
+                                        val query = textState.value.text.trim()
                                         if (query.isNotEmpty()) {
                                             handleQuerySubmission(query)
                                         }
@@ -243,7 +271,7 @@ class MainActivity : ComponentActivity() {
                             ItemsList(
                                 modifier = Modifier.fillMaxSize(),
                                 results = providerResults,
-                                onItemClick = { result -> startPendingAction(result) },
+                                onItemClick = { result -> handleResultSelection(result) },
                                 onItemLongPress = onItemLongPress@{ result ->
                                     val target = result.aliasTarget ?: return@onItemLongPress
                                     val suggestion = sanitizeAliasSuggestion(result.title)

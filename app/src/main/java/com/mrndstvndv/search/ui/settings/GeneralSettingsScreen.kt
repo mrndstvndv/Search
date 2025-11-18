@@ -56,6 +56,7 @@ fun GeneralSettingsScreen(
     val backgroundBlurStrength by settingsRepository.backgroundBlurStrength.collectAsState()
     val activityIndicatorDelayMs by settingsRepository.activityIndicatorDelayMs.collectAsState()
     val animationsEnabled by settingsRepository.animationsEnabled.collectAsState()
+    val textUtilitiesSettings by settingsRepository.textUtilitiesSettings.collectAsState()
     var showWebSearchDialog by remember { mutableStateOf(false) }
 
     Box(
@@ -151,6 +152,22 @@ fun GeneralSettingsScreen(
                             onValueChange = { settingsRepository.setActivityIndicatorDelayMs(it.roundToInt()) },
                             valueRange = 0f..1000f,
                             steps = 19
+                        )
+                    }
+                }
+            }
+
+            item {
+                SettingsSection(
+                    title = "Text utilities",
+                    subtitle = "Control how Base64 helpers behave."
+                ) {
+                    SettingsCardGroup {
+                        SettingsToggleRow(
+                            title = "Open decoded URLs",
+                            subtitle = "Launch web links instead of copying them when decoding Base64.",
+                            checked = textUtilitiesSettings.openDecodedUrls,
+                            onCheckedChange = { settingsRepository.setOpenDecodedUrlsAutomatically(it) }
                         )
                     }
                 }

@@ -18,6 +18,7 @@ class ProviderSettingsRepository(context: Context) {
         private const val KEY_BACKGROUND_BLUR_STRENGTH = "background_blur_strength"
         private const val KEY_ACTIVITY_INDICATOR_DELAY_MS = "activity_indicator_delay_ms"
         private const val KEY_ANIMATIONS_ENABLED = "animations_enabled"
+        private const val KEY_TEXT_UTILITIES = "text_utilities"
         private const val DEFAULT_BACKGROUND_OPACITY = 0.35f
         private const val DEFAULT_BACKGROUND_BLUR_STRENGTH = 0.5f
         private const val DEFAULT_ACTIVITY_INDICATOR_DELAY_MS = 250
@@ -44,6 +45,9 @@ class ProviderSettingsRepository(context: Context) {
 
     private val _animationsEnabled = MutableStateFlow(loadAnimationsEnabled())
     val animationsEnabled: StateFlow<Boolean> = _animationsEnabled
+
+    private val _textUtilitiesSettings = MutableStateFlow(loadTextUtilitiesSettings())
+    val textUtilitiesSettings: StateFlow<TextUtilitiesSettings> = _textUtilitiesSettings
 
     fun saveWebSearchSettings(settings: WebSearchSettings) {
         preferences.edit { putString(KEY_WEB_SEARCH, settings.toJsonString()) }
@@ -78,6 +82,13 @@ class ProviderSettingsRepository(context: Context) {
         _animationsEnabled.value = enabled
     }
 
+    fun setOpenDecodedUrlsAutomatically(enabled: Boolean) {
+        val current = _textUtilitiesSettings.value
+        if (current.openDecodedUrls == enabled) return
+        val updated = current.copy(openDecodedUrls = enabled)
+        saveTextUtilitiesSettings(updated)
+    }
+
     private fun loadWebSearchSettings(): WebSearchSettings {
         val json = preferences.getString(KEY_WEB_SEARCH, null) ?: return WebSearchSettings.default()
         return try {
@@ -106,6 +117,21 @@ class ProviderSettingsRepository(context: Context) {
 
     private fun loadAnimationsEnabled(): Boolean {
         return preferences.getBoolean(KEY_ANIMATIONS_ENABLED, DEFAULT_ANIMATIONS_ENABLED)
+    }
+
+    private fun loadTextUtilitiesSettings(): TextUtilitiesSettings {
+        val json = preferences.getString(KEY_TEXT_UTILITIES, null)
+        return try {
+            val parsed = json?.let { JSONObject(it) }
+            TextUtilitiesSettings.fromJson(parsed) ?: TextUtilitiesSettings.default()
+        } catch (ignored: JSONException) {
+            TextUtilitiesSettings.default()
+        }
+    }
+
+    private fun saveTextUtilitiesSettings(settings: TextUtilitiesSettings) {
+        preferences.edit { putString(KEY_TEXT_UTILITIES, settings.toJsonString()) }
+        _textUtilitiesSettings.value = settings
     }
 }
 
@@ -228,4 +254,27 @@ data class WebSearchSite(
             return WebSearchSite(id = id, displayName = name, urlTemplate = template)
         }
     }
+}
+
+data class TextUtilitiesSettings(
+    val openDecodedUrls: Boolean
+) {
+    companion object {
+        fun default(): TextUtilitiesSettings = TextUtilitiesSettings(openDecodedUrls = true)
+
+        fun fromJson(json: JSONObject?): TextUtilitiesSettings? {
+            if (json == null) return null
+            return TextUtilitiesSettings(
+                openDecodedUrls = json.optBoolean("openDecodedUrls", true)
+            )
+        }
+    }
+
+    fun toJson(): JSONObject {
+        return JSONObject().apply {
+            put("openDecodedUrls", openDecodedUrls)
+        }
+    }
+
+    fun toJsonString(): String = toJson().toString()
 }
