@@ -1,11 +1,12 @@
 package com.mrndstvndv.search.ui.components
 
+import android.graphics.Bitmap
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,19 +20,21 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.ui.theme.motionAwareTween
 
@@ -50,7 +53,10 @@ fun ItemsList(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        itemsIndexed(results) { index, item ->
+        itemsIndexed(
+            items = results,
+            key = { _, item -> item.id }
+        ) { index, item ->
             val singleItem = results.size == 1
             val targetTopStart = when {
                 singleItem -> 20.dp
@@ -104,6 +110,16 @@ fun ItemsList(
                 MaterialTheme.colorScheme.onSurfaceVariant
             }
 
+            val iconBitmap by produceState<Bitmap?>(
+                initialValue = item.icon,
+                key1 = item.id,
+                key2 = item.iconLoader
+            ) {
+                if (value != null) return@produceState
+                val loader = item.iconLoader ?: return@produceState
+                value = loader()
+            }
+
             Surface(
                 shape = shape,
                 tonalElevation = if (translucentItems) 0.dp else 1.dp,
@@ -133,25 +149,40 @@ fun ItemsList(
                         .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    item.icon?.let { bitmap ->
-                        val painter = remember(bitmap) { BitmapPainter(bitmap.asImageBitmap()) }
-                        Image(
-                            painter = painter,
-                            contentDescription = null,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(Modifier.width(12.dp))
+                    when {
+                        iconBitmap != null -> {
+                            val painter = remember(iconBitmap) { BitmapPainter(iconBitmap!!.asImageBitmap()) }
+                            androidx.compose.foundation.Image(
+                                painter = painter,
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                        }
+                        item.vectorIcon != null -> {
+                            Icon(
+                                imageVector = item.vectorIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = primaryTextColor
+                            )
+                            Spacer(Modifier.width(12.dp))
+                        }
                     }
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = item.title,
-                            color = primaryTextColor
+                            color = primaryTextColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         item.subtitle?.let { subtitle ->
                             Text(
                                 text = subtitle,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = subtitleColor
+                                color = subtitleColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

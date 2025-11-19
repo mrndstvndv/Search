@@ -53,6 +53,9 @@ import com.mrndstvndv.search.alias.WebSearchAliasTarget
 import com.mrndstvndv.search.provider.apps.AppListProvider
 import com.mrndstvndv.search.provider.calculator.CalculatorProvider
 import com.mrndstvndv.search.provider.debug.DebugLongOperationProvider
+import com.mrndstvndv.search.provider.files.FileSearchProvider
+import com.mrndstvndv.search.provider.files.FileSearchRepository
+import com.mrndstvndv.search.provider.files.FileThumbnailRepository
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
@@ -99,11 +102,14 @@ class MainActivity : ComponentActivity() {
                 applyWindowBlur(backgroundBlurStrength)
             }
 
+            val fileSearchRepository = remember(this@MainActivity) { FileSearchRepository.getInstance(this@MainActivity) }
+            val fileThumbnailRepository = remember(this@MainActivity) { FileThumbnailRepository.getInstance(this@MainActivity) }
             val providers = remember(this@MainActivity) {
                 buildList {
                     add(AppListProvider(this@MainActivity, defaultAppIconSize))
                     add(CalculatorProvider(this@MainActivity))
                     add(TextUtilitiesProvider(this@MainActivity, settingsRepository))
+                    add(FileSearchProvider(this@MainActivity, settingsRepository, fileSearchRepository, fileThumbnailRepository))
                     add(WebSearchProvider(this@MainActivity, settingsRepository))
                     if (BuildConfig.DEBUG) {
                         add(DebugLongOperationProvider(this@MainActivity))

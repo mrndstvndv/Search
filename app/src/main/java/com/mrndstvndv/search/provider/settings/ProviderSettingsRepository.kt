@@ -2,11 +2,13 @@ package com.mrndstvndv.search.provider.settings
 
 import android.content.Context
 import android.net.Uri
+import android.os.Environment
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import android.content.SharedPreferences
 import androidx.core.content.edit
 
 class ProviderSettingsRepository(context: Context) {
@@ -19,6 +21,7 @@ class ProviderSettingsRepository(context: Context) {
         private const val KEY_ACTIVITY_INDICATOR_DELAY_MS = "activity_indicator_delay_ms"
         private const val KEY_ANIMATIONS_ENABLED = "animations_enabled"
         private const val KEY_TEXT_UTILITIES = "text_utilities"
+        private const val KEY_FILE_SEARCH = "file_search"
         private const val DEFAULT_BACKGROUND_OPACITY = 0.35f
         private const val DEFAULT_BACKGROUND_BLUR_STRENGTH = 0.5f
         private const val DEFAULT_ACTIVITY_INDICATOR_DELAY_MS = 250
@@ -26,7 +29,12 @@ class ProviderSettingsRepository(context: Context) {
         private const val DEFAULT_ANIMATIONS_ENABLED = true
     }
 
-    private val preferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+    private val preferences: SharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+    private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        when (key) {
+            KEY_FILE_SEARCH -> _fileSearchSettings.value = loadFileSearchSettings()
+        }
+    }
 
     private val _webSearchSettings = MutableStateFlow(loadWebSearchSettings())
     val webSearchSettings: StateFlow<WebSearchSettings> = _webSearchSettings
@@ -48,6 +56,13 @@ class ProviderSettingsRepository(context: Context) {
 
     private val _textUtilitiesSettings = MutableStateFlow(loadTextUtilitiesSettings())
     val textUtilitiesSettings: StateFlow<TextUtilitiesSettings> = _textUtilitiesSettings
+
+    private val _fileSearchSettings = MutableStateFlow(loadFileSearchSettings())
+    val fileSearchSettings: StateFlow<FileSearchSettings> = _fileSearchSettings
+
+    init {
+        preferences.registerOnSharedPreferenceChangeListener(preferenceListener)
+    }
 
     fun saveWebSearchSettings(settings: WebSearchSettings) {
         preferences.edit { putString(KEY_WEB_SEARCH, settings.toJsonString()) }
@@ -87,6 +102,52 @@ class ProviderSettingsRepository(context: Context) {
         if (current.openDecodedUrls == enabled) return
         val updated = current.copy(openDecodedUrls = enabled)
         saveTextUtilitiesSettings(updated)
+    }
+
+    fun setDownloadsIndexingEnabled(enabled: Boolean) {
+        val current = _fileSearchSettings.value
+        if (current.includeDownloads == enabled) return
+        saveFileSearchSettings(current.copy(includeDownloads = enabled))
+    }
+
+    fun addFileSearchRoot(root: FileSearchRoot) {
+        val current = _fileSearchSettings.value
+        if (current.roots.any { it.id == root.id }) return
+        saveFileSearchSettings(current.copy(roots = current.roots + root))
+    }
+
+    fun removeFileSearchRoot(rootId: String) {
+        val current = _fileSearchSettings.value
+        val updatedRoots = current.roots.filterNot { it.id == rootId }
+        if (updatedRoots.size == current.roots.size) return
+        val updatedMetadata = current.scanMetadata - rootId
+        saveFileSearchSettings(current.copy(roots = updatedRoots, scanMetadata = updatedMetadata))
+    }
+
+    fun setFileSearchRootEnabled(rootId: String, enabled: Boolean) {
+        val current = _fileSearchSettings.value
+        val updatedRoots = current.roots.map { root ->
+            if (root.id == rootId) root.copy(isEnabled = enabled) else root
+        }
+        if (updatedRoots == current.roots) return
+        saveFileSearchSettings(current.copy(roots = updatedRoots))
+    }
+
+    fun updateFileSearchScanState(
+        rootId: String,
+        state: FileSearchScanState,
+        itemCount: Int = 0,
+        errorMessage: String? = null
+    ) {
+        val current = _fileSearchSettings.value
+        val metadata = FileSearchScanMetadata(
+            state = state,
+            indexedItemCount = itemCount,
+            updatedAtMillis = System.currentTimeMillis(),
+            errorMessage = errorMessage
+        )
+        val updatedMetadata = current.scanMetadata.toMutableMap().apply { put(rootId, metadata) }
+        saveFileSearchSettings(current.copy(scanMetadata = updatedMetadata))
     }
 
     private fun loadWebSearchSettings(): WebSearchSettings {
@@ -133,9 +194,24 @@ class ProviderSettingsRepository(context: Context) {
         }
     }
 
+    private fun loadFileSearchSettings(): FileSearchSettings {
+        val json = preferences.getString(KEY_FILE_SEARCH, null)
+        return try {
+            val parsed = json?.let { JSONObject(it) }
+            FileSearchSettings.fromJson(parsed) ?: FileSearchSettings.empty()
+        } catch (ignored: JSONException) {
+            FileSearchSettings.empty()
+        }
+    }
+
     private fun saveTextUtilitiesSettings(settings: TextUtilitiesSettings) {
         preferences.edit { putString(KEY_TEXT_UTILITIES, settings.toJsonString()) }
         _textUtilitiesSettings.value = settings
+    }
+
+    private fun saveFileSearchSettings(settings: FileSearchSettings) {
+        preferences.edit { putString(KEY_FILE_SEARCH, settings.toJsonString()) }
+        _fileSearchSettings.value = settings
     }
 }
 
@@ -281,4 +357,148 @@ data class TextUtilitiesSettings(
     }
 
     fun toJsonString(): String = toJson().toString()
+}
+
+data class FileSearchSettings(
+    val roots: List<FileSearchRoot>,
+    val scanMetadata: Map<String, FileSearchScanMetadata>,
+    val includeDownloads: Boolean
+) {
+    fun toJsonString(): String {
+        val json = JSONObject()
+        val rootsArray = JSONArray()
+        roots.forEach { rootsArray.put(it.toJson()) }
+        json.put("roots", rootsArray)
+        val metadata = JSONObject()
+        scanMetadata.forEach { (rootId, data) ->
+            metadata.put(rootId, data.toJson())
+        }
+        json.put("metadata", metadata)
+        json.put("includeDownloads", includeDownloads)
+        return json.toString()
+    }
+
+    fun rootById(rootId: String): FileSearchRoot? = roots.firstOrNull { it.id == rootId }
+
+    fun enabledRoots(): List<FileSearchRoot> = roots.filter { it.isEnabled }
+
+    companion object {
+        const val DOWNLOADS_ROOT_ID = "downloads-root"
+
+        fun empty(): FileSearchSettings = FileSearchSettings(emptyList(), emptyMap(), includeDownloads = false)
+
+        fun fromJson(json: JSONObject?): FileSearchSettings? {
+            if (json == null) return empty()
+            val rootsArray = json.optJSONArray("roots") ?: JSONArray()
+            val roots = buildList {
+                for (i in 0 until rootsArray.length()) {
+                    val parsed = FileSearchRoot.fromJson(rootsArray.optJSONObject(i))
+                    if (parsed != null) add(parsed)
+                }
+            }
+            val metadataObject = json.optJSONObject("metadata") ?: JSONObject()
+            val metadata = mutableMapOf<String, FileSearchScanMetadata>()
+            val keys = metadataObject.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val parsed = FileSearchScanMetadata.fromJson(metadataObject.optJSONObject(key))
+                if (parsed != null) metadata[key] = parsed
+            }
+            val includeDownloads = json.optBoolean("includeDownloads", false)
+            return FileSearchSettings(roots = roots, scanMetadata = metadata, includeDownloads = includeDownloads)
+        }
+    }
+}
+
+data class FileSearchRoot(
+    val id: String,
+    val uri: Uri,
+    val displayName: String,
+    val isEnabled: Boolean = true,
+    val addedAtMillis: Long
+) {
+    fun toJson(): JSONObject {
+        return JSONObject().apply {
+            put("id", id)
+            put("uri", uri.toString())
+            put("displayName", displayName)
+            put("isEnabled", isEnabled)
+            put("addedAtMillis", addedAtMillis)
+        }
+    }
+
+    companion object {
+        fun fromJson(json: JSONObject?): FileSearchRoot? {
+            if (json == null) return null
+            val id = json.optString("id").takeIf { it.isNotBlank() } ?: return null
+            val uriValue = json.optString("uri").takeIf { it.isNotBlank() } ?: return null
+            val uri = Uri.parse(uriValue)
+            val name = json.optString("displayName").ifBlank { uri.lastPathSegment ?: uriValue }
+            val enabled = json.optBoolean("isEnabled", true)
+            val addedAt = json.optLong("addedAtMillis", 0L)
+            return FileSearchRoot(
+                id = id,
+                uri = uri,
+                displayName = name,
+                isEnabled = enabled,
+                addedAtMillis = addedAt
+            )
+        }
+
+        fun downloadsRoot(): FileSearchRoot? {
+            val directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val uri = directory?.let { Uri.fromFile(it) } ?: return null
+            return FileSearchRoot(
+                id = FileSearchSettings.DOWNLOADS_ROOT_ID,
+                uri = uri,
+                displayName = "Downloads",
+                isEnabled = true,
+                addedAtMillis = directory.lastModified()
+            )
+        }
+    }
+}
+
+data class FileSearchScanMetadata(
+    val state: FileSearchScanState,
+    val indexedItemCount: Int,
+    val updatedAtMillis: Long,
+    val errorMessage: String? = null
+) {
+    fun toJson(): JSONObject {
+        return JSONObject().apply {
+            put("state", state.name)
+            put("indexedItemCount", indexedItemCount)
+            put("updatedAtMillis", updatedAtMillis)
+            if (errorMessage != null) {
+                put("errorMessage", errorMessage)
+            }
+        }
+    }
+
+    companion object {
+        fun fromJson(json: JSONObject?): FileSearchScanMetadata? {
+            if (json == null) return null
+            val stateName = json.optString("state", FileSearchScanState.IDLE.name)
+            val state = runCatching { FileSearchScanState.valueOf(stateName) }
+                .getOrDefault(FileSearchScanState.IDLE)
+            val itemCount = json.optInt("indexedItemCount", 0)
+            val updatedAt = json.optLong("updatedAtMillis", 0L)
+            val rawError = json.optString("errorMessage")
+            val error = rawError.takeIf { it.isNotBlank() }
+            return FileSearchScanMetadata(
+                state = state,
+                indexedItemCount = itemCount,
+                updatedAtMillis = updatedAt,
+                errorMessage = error
+            )
+        }
+    }
+}
+
+enum class FileSearchScanState {
+    IDLE,
+    INDEXING,
+    SUCCESS,
+    ERROR
 }

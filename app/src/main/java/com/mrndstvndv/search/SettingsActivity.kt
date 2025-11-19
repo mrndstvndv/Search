@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.mrndstvndv.search.alias.AliasRepository
+import com.mrndstvndv.search.provider.files.FileSearchRepository
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
 import com.mrndstvndv.search.settings.AssistantRoleManager
 import com.mrndstvndv.search.ui.settings.GeneralSettingsScreen
@@ -32,6 +33,7 @@ class SettingsActivity : ComponentActivity() {
         setContent {
             val aliasRepository = remember { AliasRepository(this@SettingsActivity) }
             val settingsRepository = remember { ProviderSettingsRepository(this@SettingsActivity) }
+            val fileSearchRepository = remember { FileSearchRepository.getInstance(this@SettingsActivity) }
             val isDefaultAssistant by defaultAssistantState
             val motionPreferences by settingsRepository.motionPreferences.collectAsState()
             val appName = getString(R.string.app_name)
@@ -42,6 +44,7 @@ class SettingsActivity : ComponentActivity() {
                 GeneralSettingsScreen(
                     aliasRepository = aliasRepository,
                     settingsRepository = settingsRepository,
+                    fileSearchRepository = fileSearchRepository,
                     appName = appName,
                     isDefaultAssistant = isDefaultAssistant,
                     onRequestSetDefaultAssistant = { assistantRoleManager.launchDefaultAssistantSettings() },
