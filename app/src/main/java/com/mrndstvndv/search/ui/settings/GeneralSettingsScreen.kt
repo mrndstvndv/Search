@@ -118,7 +118,8 @@ fun GeneralSettingsScreen(
                             subtitle = "Dim the wallpaper behind the search UI.",
                             valueText = "${(backgroundOpacity * 100).roundToInt()}%",
                             value = backgroundOpacity,
-                            onValueChange = { settingsRepository.setBackgroundOpacity(it) }
+                            onValueChange = { settingsRepository.setBackgroundOpacity(it) },
+                            steps = 19
                         )
                         SettingsDivider()
                         SettingsSliderRow(
@@ -126,7 +127,8 @@ fun GeneralSettingsScreen(
                             subtitle = "Adjust how strong the wallpaper blur looks behind the app.",
                             valueText = "${(backgroundBlurStrength * 100).roundToInt()}%",
                             value = backgroundBlurStrength,
-                            onValueChange = { settingsRepository.setBackgroundBlurStrength(it) }
+                            onValueChange = { settingsRepository.setBackgroundBlurStrength(it) },
+                            steps = 19
                         )
                     }
                 }
