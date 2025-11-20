@@ -31,8 +31,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +65,8 @@ import com.mrndstvndv.search.provider.settings.WebSearchSettings
 import com.mrndstvndv.search.provider.text.TextUtilitiesProvider
 import com.mrndstvndv.search.provider.web.WebSearchProvider
 import com.mrndstvndv.search.ui.components.ItemsList
+import com.mrndstvndv.search.ui.components.ProviderLoadingStatus
+import com.mrndstvndv.search.ui.components.ProviderLoadingStatusRow
 import com.mrndstvndv.search.ui.components.SearchField
 import com.mrndstvndv.search.ui.settings.AliasCreationDialog
 import com.mrndstvndv.search.ui.theme.SearchTheme
@@ -70,6 +74,7 @@ import com.mrndstvndv.search.ui.theme.motionAwareVisibility
 import com.mrndstvndv.search.ui.theme.rememberMotionAwareFloat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
@@ -117,6 +122,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
             val providerResults = remember { mutableStateListOf<ProviderResult>() }
+            val providerLoadingStates = remember { mutableStateMapOf<String, ProviderLoadingStatus>() }
+            val providerLoadingIndicatorScope = rememberCoroutineScope()
             var shouldShowResults by remember { mutableStateOf(false) }
 
             var aliasDialogCandidate by remember { mutableStateOf<AliasCreationCandidate?>(null) }
@@ -162,15 +169,40 @@ class MainActivity : ComponentActivity() {
                 val match = aliasRepository.matchAlias(currentText)
                 val normalizedText = match?.remainingQuery ?: currentText
                 val query = Query(normalizedText, originalText = currentText)
-                val aggregated = withContext(Dispatchers.Default) {
-                    val results = mutableListOf<ProviderResult>()
-                    providers.forEach { provider ->
-                        if (provider.canHandle(query)) {
-                            results += provider.query(query)
+                providerLoadingStates.clear()
+
+                val aggregated = mutableListOf<ProviderResult>()
+                val matchingProviders = providers.filter { it.canHandle(query) }
+                matchingProviders.forEach { provider ->
+                    val delayDurationMs = activityIndicatorDelayMs.coerceAtLeast(0)
+                    providerLoadingStates[provider.id] = ProviderLoadingStatus(
+                        id = provider.id,
+                        displayName = provider.displayName,
+                        isLoading = true,
+                        showAfterDelay = false
+                    )
+                    providerLoadingIndicatorScope.launch {
+                        if (delayDurationMs > 0) {
+                            delay(delayDurationMs.toLong())
+                        }
+                        providerLoadingStates[provider.id]?.let { status ->
+                            if (status.isLoading) {
+                                providerLoadingStates[provider.id] = status.copy(showAfterDelay = true)
+                            }
                         }
                     }
-                    results
+                    val providerResult = try {
+                        withContext(Dispatchers.Default) {
+                            provider.query(query)
+                        }
+                    } catch (error: Throwable) {
+                        emptyList()
+                    } finally {
+                        providerLoadingStates.remove(provider.id)
+                    }
+                    aggregated += providerResult
                 }
+
                 val filtered = match?.entry?.target?.let { aliasTarget ->
                     aggregated.filterNot { it.aliasTarget == aliasTarget }
                 } ?: aggregated
@@ -250,6 +282,14 @@ class MainActivity : ComponentActivity() {
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                         }
+
+                        val providerStatusList = providers.mapNotNull { providerLoadingStates[it.id] }
+                        ProviderLoadingStatusRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            statuses = providerStatusList
+                        )
 
                         if (!hasVisibleResults) {
                             Spacer(Modifier.weight(spacerWeight))
