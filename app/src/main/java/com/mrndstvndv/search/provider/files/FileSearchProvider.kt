@@ -17,6 +17,7 @@ import com.mrndstvndv.search.provider.files.ThumbnailType
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.provider.settings.FileSearchSettings
+import com.mrndstvndv.search.provider.settings.FileSearchThumbnailCropMode
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Android
@@ -63,7 +64,7 @@ class FileSearchProvider(
         val lowerQuery = normalized.lowercase()
         val results = mutableListOf<ProviderResult>()
         for (match in matches) {
-            val iconDescriptor = resolveIcons(match, thumbnailsEnabled)
+            val iconDescriptor = resolveIcons(match, thumbnailsEnabled, settings.thumbnailCropMode)
             results += ProviderResult(
                 id = "$id:${match.documentUri.hashCode()}",
                 title = match.displayName,
@@ -91,7 +92,11 @@ class FileSearchProvider(
         }
     }
 
-    private fun resolveIcons(match: FileSearchMatch, thumbnailsEnabled: Boolean): IconDescriptor {
+    private fun resolveIcons(
+        match: FileSearchMatch,
+        thumbnailsEnabled: Boolean,
+        cropMode: FileSearchThumbnailCropMode
+    ): IconDescriptor {
         if (match.isDirectory) return IconDescriptor(folderIcon, null)
         val mime = match.mimeType?.lowercase()
         val extension = match.displayName.substringAfterLast('.', "").lowercase()
@@ -99,7 +104,7 @@ class FileSearchProvider(
             return IconDescriptor(
                 vectorIcon = imageIcon,
                 iconLoader = if (thumbnailsEnabled) {
-                    { thumbnailRepository.loadThumbnail(match.documentUri, match.lastModified, ThumbnailType.IMAGE) }
+                    { thumbnailRepository.loadThumbnail(match.documentUri, match.lastModified, cropMode, ThumbnailType.IMAGE) }
                 } else null
             )
         }
@@ -107,7 +112,7 @@ class FileSearchProvider(
             return IconDescriptor(
                 vectorIcon = videoIcon,
                 iconLoader = if (thumbnailsEnabled) {
-                    { thumbnailRepository.loadThumbnail(match.documentUri, match.lastModified, ThumbnailType.VIDEO) }
+                    { thumbnailRepository.loadThumbnail(match.documentUri, match.lastModified, cropMode, ThumbnailType.VIDEO) }
                 } else null
             )
         }
@@ -115,7 +120,7 @@ class FileSearchProvider(
             return IconDescriptor(
                 vectorIcon = musicIcon,
                 iconLoader = if (thumbnailsEnabled) {
-                    { thumbnailRepository.loadThumbnail(match.documentUri, match.lastModified, ThumbnailType.AUDIO) }
+                    { thumbnailRepository.loadThumbnail(match.documentUri, match.lastModified, cropMode, ThumbnailType.AUDIO) }
                 } else null
             )
         }

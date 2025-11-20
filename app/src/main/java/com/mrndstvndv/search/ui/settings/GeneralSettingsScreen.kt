@@ -30,11 +30,15 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -65,6 +69,7 @@ import com.mrndstvndv.search.provider.settings.FileSearchRoot
 import com.mrndstvndv.search.provider.settings.FileSearchScanMetadata
 import com.mrndstvndv.search.provider.settings.FileSearchScanState
 import com.mrndstvndv.search.provider.settings.FileSearchSettings
+import com.mrndstvndv.search.provider.settings.FileSearchThumbnailCropMode
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
@@ -239,6 +244,12 @@ fun GeneralSettingsScreen(
                             subtitle = "Show previews for images, videos, and audio files in search results.",
                             checked = fileSearchSettings.loadThumbnails,
                             onCheckedChange = { settingsRepository.setFileSearchThumbnailsEnabled(it) }
+                        )
+                        SettingsDivider()
+                        ThumbnailCropModeRow(
+                            selectedMode = fileSearchSettings.thumbnailCropMode,
+                            enabled = fileSearchSettings.loadThumbnails,
+                            onModeSelected = { settingsRepository.setFileSearchThumbnailCropMode(it) }
                         )
                         SettingsDivider()
                         FileSearchRootsCard(
@@ -540,6 +551,64 @@ private fun SettingsToggleRow(
             checked = checked,
             onCheckedChange = onCheckedChange
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ThumbnailCropModeRow(
+    selectedMode: FileSearchThumbnailCropMode,
+    enabled: Boolean,
+    onModeSelected: (FileSearchThumbnailCropMode) -> Unit
+) {
+    val subtitle = if (enabled) {
+        "Choose how previews fill the square icon."
+    } else {
+        "Turn on thumbnails to change how previews are cropped."
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 18.dp)
+    ) {
+        Text(
+            text = "Thumbnail crop",
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        val options = FileSearchThumbnailCropMode.values()
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+        ) {
+            options.forEachIndexed { index, mode ->
+                SegmentedButton(
+                    selected = mode == selectedMode,
+                    onClick = {
+                        if (enabled && mode != selectedMode) {
+                            onModeSelected(mode)
+                        }
+                    },
+                    enabled = enabled,
+                    shape = SegmentedButtonDefaults.itemShape(index, options.size)
+                ) {
+                    Text(text = mode.userFacingLabel())
+                }
+            }
+        }
+    }
+}
+
+private fun FileSearchThumbnailCropMode.userFacingLabel(): String {
+    return when (this) {
+        FileSearchThumbnailCropMode.FIT -> "Fit"
+        FileSearchThumbnailCropMode.CENTER_CROP -> "Center crop"
     }
 }
 

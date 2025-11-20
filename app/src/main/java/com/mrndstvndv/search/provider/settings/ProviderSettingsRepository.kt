@@ -116,6 +116,12 @@ class ProviderSettingsRepository(context: Context) {
         saveFileSearchSettings(current.copy(loadThumbnails = enabled))
     }
 
+    fun setFileSearchThumbnailCropMode(mode: FileSearchThumbnailCropMode) {
+        val current = _fileSearchSettings.value
+        if (current.thumbnailCropMode == mode) return
+        saveFileSearchSettings(current.copy(thumbnailCropMode = mode))
+    }
+
     fun addFileSearchRoot(root: FileSearchRoot) {
         val current = _fileSearchSettings.value
         if (current.roots.any { it.id == root.id }) return
@@ -369,7 +375,8 @@ data class FileSearchSettings(
     val roots: List<FileSearchRoot>,
     val scanMetadata: Map<String, FileSearchScanMetadata>,
     val includeDownloads: Boolean,
-    val loadThumbnails: Boolean
+    val loadThumbnails: Boolean,
+    val thumbnailCropMode: FileSearchThumbnailCropMode
 ) {
     fun toJsonString(): String {
         val json = JSONObject()
@@ -383,6 +390,7 @@ data class FileSearchSettings(
         json.put("metadata", metadata)
         json.put("includeDownloads", includeDownloads)
         json.put("loadThumbnails", loadThumbnails)
+        json.put("thumbnailCropMode", thumbnailCropMode.name)
         return json.toString()
     }
 
@@ -397,7 +405,8 @@ data class FileSearchSettings(
             roots = emptyList(),
             scanMetadata = emptyMap(),
             includeDownloads = false,
-            loadThumbnails = true
+            loadThumbnails = true,
+            thumbnailCropMode = FileSearchThumbnailCropMode.FIT
         )
 
         fun fromJson(json: JSONObject?): FileSearchSettings? {
@@ -419,11 +428,14 @@ data class FileSearchSettings(
             }
             val includeDownloads = json.optBoolean("includeDownloads", false)
             val loadThumbnails = json.optBoolean("loadThumbnails", true)
+            val cropRaw = json.optString("thumbnailCropMode", FileSearchThumbnailCropMode.FIT.name)
+            val cropMode = FileSearchThumbnailCropMode.fromStorageValue(cropRaw)
             return FileSearchSettings(
                 roots = roots,
                 scanMetadata = metadata,
                 includeDownloads = includeDownloads,
-                loadThumbnails = loadThumbnails
+                loadThumbnails = loadThumbnails,
+                thumbnailCropMode = cropMode
             )
         }
     }
@@ -520,4 +532,16 @@ enum class FileSearchScanState {
     INDEXING,
     SUCCESS,
     ERROR
+}
+
+enum class FileSearchThumbnailCropMode {
+    FIT,
+    CENTER_CROP;
+
+    companion object {
+        fun fromStorageValue(value: String?): FileSearchThumbnailCropMode {
+            if (value.isNullOrBlank()) return FIT
+            return entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: FIT
+        }
+    }
 }
