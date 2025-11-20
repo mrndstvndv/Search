@@ -1,6 +1,7 @@
 package com.mrndstvndv.search.provider.files
 
 import android.content.ActivityNotFoundException
+import android.content.ContentResolver
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
@@ -9,6 +10,7 @@ import android.os.Environment
 import android.provider.DocumentsContract
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.core.content.FileProvider
 import com.mrndstvndv.search.provider.Provider
 import com.mrndstvndv.search.provider.files.FileSearchMatch
 import com.mrndstvndv.search.provider.files.FileSearchRepository
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class FileSearchProvider(
     private val activity: ComponentActivity,
@@ -37,6 +40,8 @@ class FileSearchProvider(
     private val repository: FileSearchRepository,
     private val thumbnailRepository: FileThumbnailRepository
 ) : Provider {
+
+    private val fileProviderAuthority: String = "${activity.packageName}.fileprovider"
 
     override val id: String = "file-search"
     override val displayName: String = "Files & Folders"
@@ -162,21 +167,28 @@ class FileSearchProvider(
     private val archiveIcon: ImageVector = Icons.Outlined.FolderZip
 
     private suspend fun openDocument(match: FileSearchMatch) {
-        val uri = Uri.parse(match.documentUri)
+        val originalUri = Uri.parse(match.documentUri)
         val targetMime = when {
             match.isDirectory -> DocumentsContract.Document.MIME_TYPE_DIR
             !match.mimeType.isNullOrBlank() -> match.mimeType
             else -> DEFAULT_MIME
         }
         withContext(Dispatchers.Main) {
+            val shareableUri = resolveSharableUri(originalUri)
+            if (shareableUri == null) {
+                Toast.makeText(activity, "Can't open this item", Toast.LENGTH_SHORT).show()
+                return@withContext
+            }
             val intent = Intent(Intent.ACTION_VIEW)
-                .setDataAndType(uri, targetMime)
+                .setDataAndType(shareableUri, targetMime)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             try {
                 activity.startActivity(intent)
                 activity.finish()
             } catch (error: ActivityNotFoundException) {
                 Toast.makeText(activity, "No app can open this item", Toast.LENGTH_SHORT).show()
+            } catch (error: SecurityException) {
+                Toast.makeText(activity, "Permission denied for this file", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -193,6 +205,16 @@ class FileSearchProvider(
         if (lowerName.contains(query)) score += 1f
         if (!match.isDirectory) score += 0.1f
         return score
+    }
+
+    private fun resolveSharableUri(original: Uri): Uri? {
+        if (original.scheme != ContentResolver.SCHEME_FILE) return original
+        val path = original.path ?: return null
+        val file = File(path)
+        if (!file.exists()) return null
+        return runCatching {
+            FileProvider.getUriForFile(activity, fileProviderAuthority, file)
+        }.getOrNull()
     }
 
     companion object {

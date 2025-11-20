@@ -1012,7 +1012,8 @@ private fun resolveDownloadsStatusText(
         uri = Uri.EMPTY,
         displayName = "Downloads",
         isEnabled = true,
-        addedAtMillis = 0L
+        addedAtMillis = 0L,
+        parentDisplayName = null
     )
     return resolveFileSearchStatus(placeholderRoot, metadata)
 }
