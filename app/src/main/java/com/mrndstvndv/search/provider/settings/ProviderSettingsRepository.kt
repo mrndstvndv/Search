@@ -122,6 +122,18 @@ class ProviderSettingsRepository(context: Context) {
         saveFileSearchSettings(current.copy(thumbnailCropMode = mode))
     }
 
+    fun setFileSearchSortMode(mode: FileSearchSortMode) {
+        val current = _fileSearchSettings.value
+        if (current.sortMode == mode) return
+        saveFileSearchSettings(current.copy(sortMode = mode))
+    }
+
+    fun setFileSearchSortAscending(ascending: Boolean) {
+        val current = _fileSearchSettings.value
+        if (current.sortAscending == ascending) return
+        saveFileSearchSettings(current.copy(sortAscending = ascending))
+    }
+
     fun addFileSearchRoot(root: FileSearchRoot) {
         val current = _fileSearchSettings.value
         if (current.roots.any { it.id == root.id }) return
@@ -376,7 +388,9 @@ data class FileSearchSettings(
     val scanMetadata: Map<String, FileSearchScanMetadata>,
     val includeDownloads: Boolean,
     val loadThumbnails: Boolean,
-    val thumbnailCropMode: FileSearchThumbnailCropMode
+    val thumbnailCropMode: FileSearchThumbnailCropMode,
+    val sortMode: FileSearchSortMode,
+    val sortAscending: Boolean
 ) {
     fun toJsonString(): String {
         val json = JSONObject()
@@ -391,6 +405,8 @@ data class FileSearchSettings(
         json.put("includeDownloads", includeDownloads)
         json.put("loadThumbnails", loadThumbnails)
         json.put("thumbnailCropMode", thumbnailCropMode.name)
+        json.put("sortMode", sortMode.name)
+        json.put("sortAscending", sortAscending)
         return json.toString()
     }
 
@@ -406,7 +422,9 @@ data class FileSearchSettings(
             scanMetadata = emptyMap(),
             includeDownloads = false,
             loadThumbnails = true,
-            thumbnailCropMode = FileSearchThumbnailCropMode.FIT
+            thumbnailCropMode = FileSearchThumbnailCropMode.FIT,
+            sortMode = FileSearchSortMode.DATE,
+            sortAscending = false
         )
 
         fun fromJson(json: JSONObject?): FileSearchSettings? {
@@ -430,12 +448,17 @@ data class FileSearchSettings(
             val loadThumbnails = json.optBoolean("loadThumbnails", true)
             val cropRaw = json.optString("thumbnailCropMode", FileSearchThumbnailCropMode.FIT.name)
             val cropMode = FileSearchThumbnailCropMode.fromStorageValue(cropRaw)
+            val sortRaw = json.optString("sortMode", FileSearchSortMode.DATE.name)
+            val sortMode = FileSearchSortMode.fromStorageValue(sortRaw)
+            val sortAscending = json.optBoolean("sortAscending", false)
             return FileSearchSettings(
                 roots = roots,
                 scanMetadata = metadata,
                 includeDownloads = includeDownloads,
                 loadThumbnails = loadThumbnails,
-                thumbnailCropMode = cropMode
+                thumbnailCropMode = cropMode,
+                sortMode = sortMode,
+                sortAscending = sortAscending
             )
         }
     }
@@ -550,6 +573,18 @@ enum class FileSearchThumbnailCropMode {
         fun fromStorageValue(value: String?): FileSearchThumbnailCropMode {
             if (value.isNullOrBlank()) return FIT
             return entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: FIT
+        }
+    }
+}
+
+enum class FileSearchSortMode {
+    DATE,
+    NAME;
+
+    companion object {
+        fun fromStorageValue(value: String?): FileSearchSortMode {
+            if (value.isNullOrBlank()) return DATE
+            return entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: DATE
         }
     }
 }

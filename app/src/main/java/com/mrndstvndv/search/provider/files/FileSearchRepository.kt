@@ -11,6 +11,7 @@ import com.mrndstvndv.search.provider.files.index.IndexedDocumentDao
 import com.mrndstvndv.search.provider.files.index.IndexedDocumentEntity
 import com.mrndstvndv.search.provider.files.indexing.FileSearchIndexWorker
 import com.mrndstvndv.search.provider.settings.FileSearchRoot
+import com.mrndstvndv.search.provider.settings.FileSearchSortMode
 import kotlin.math.min
 
 class FileSearchRepository private constructor(context: Context) {
@@ -22,6 +23,8 @@ class FileSearchRepository private constructor(context: Context) {
     suspend fun search(
         queryText: String,
         rootIds: List<String>,
+        sortMode: FileSearchSortMode,
+        sortAscending: Boolean,
         limit: Int = MAX_RESULTS
     ): List<FileSearchMatch> {
         val cleaned = queryText.trim()
@@ -29,7 +32,7 @@ class FileSearchRepository private constructor(context: Context) {
         val normalized = "%${escapeLikeWildcards(cleaned)}%"
         val dao = database.indexedDocumentDao()
         val matches = dao.search(rootIds, normalized, min(limit, MAX_RESULTS))
-        return matches.map { entity ->
+        val mapped = matches.map { entity ->
             FileSearchMatch(
                 documentUri = entity.documentUri,
                 displayName = entity.displayName,
@@ -41,6 +44,7 @@ class FileSearchRepository private constructor(context: Context) {
                 sizeBytes = entity.sizeBytes
             )
         }
+        return sortMatches(mapped, sortMode, sortAscending).take(min(limit, MAX_RESULTS))
     }
 
     suspend fun deleteRootEntries(rootId: String) {
@@ -67,6 +71,21 @@ class FileSearchRepository private constructor(context: Context) {
     private fun uniqueWorkName(rootId: String): String = "file-search-index-$rootId"
 
     private fun indexTag(rootId: String): String = "file-search-index-tag-$rootId"
+
+    private fun sortMatches(
+        matches: List<FileSearchMatch>,
+        sortMode: FileSearchSortMode,
+        sortAscending: Boolean
+    ): List<FileSearchMatch> {
+        val comparator = when (sortMode) {
+            FileSearchSortMode.DATE -> compareBy<FileSearchMatch> { it.lastModified }
+            FileSearchSortMode.NAME -> compareBy<FileSearchMatch> { it.displayName.lowercase() }
+        }
+        val effectiveComparator = if (sortAscending) comparator else comparator.reversed()
+        val directories = matches.filter { it.isDirectory }.sortedWith(effectiveComparator)
+        val files = matches.filterNot { it.isDirectory }.sortedWith(effectiveComparator)
+        return directories + files
+    }
 
     private fun escapeLikeWildcards(input: String): String {
         return buildString(input.length) {

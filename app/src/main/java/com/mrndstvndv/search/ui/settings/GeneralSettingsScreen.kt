@@ -71,6 +71,7 @@ import com.mrndstvndv.search.provider.settings.FileSearchRoot
 import com.mrndstvndv.search.provider.settings.FileSearchScanMetadata
 import com.mrndstvndv.search.provider.settings.FileSearchScanState
 import com.mrndstvndv.search.provider.settings.FileSearchSettings
+import com.mrndstvndv.search.provider.settings.FileSearchSortMode
 import com.mrndstvndv.search.provider.settings.FileSearchThumbnailCropMode
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
 import androidx.documentfile.provider.DocumentFile
@@ -252,6 +253,13 @@ fun GeneralSettingsScreen(
                             selectedMode = fileSearchSettings.thumbnailCropMode,
                             enabled = fileSearchSettings.loadThumbnails,
                             onModeSelected = { settingsRepository.setFileSearchThumbnailCropMode(it) }
+                        )
+                        SettingsDivider()
+                        FileSearchSortRow(
+                            sortMode = fileSearchSettings.sortMode,
+                            sortAscending = fileSearchSettings.sortAscending,
+                            onModeSelected = { settingsRepository.setFileSearchSortMode(it) },
+                            onToggleAscending = { settingsRepository.setFileSearchSortAscending(it) }
                         )
                         SettingsDivider()
                         FileSearchRootsCard(
@@ -607,10 +615,85 @@ private fun ThumbnailCropModeRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FileSearchSortRow(
+    sortMode: FileSearchSortMode,
+    sortAscending: Boolean,
+    onModeSelected: (FileSearchSortMode) -> Unit,
+    onToggleAscending: (Boolean) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 18.dp)
+    ) {
+        Text(
+            text = "Sort order",
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Text(
+            text = "Choose how file results are ordered.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        val options = FileSearchSortMode.values()
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+        ) {
+            options.forEachIndexed { index, mode ->
+                SegmentedButton(
+                    selected = mode == sortMode,
+                    onClick = {
+                        if (mode != sortMode) {
+                            onModeSelected(mode)
+                        }
+                    },
+                    shape = SegmentedButtonDefaults.itemShape(index, options.size)
+                ) {
+                    Text(text = mode.userFacingLabel())
+                }
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Ascending order",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Off lists newest or Z–A first.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = sortAscending,
+                onCheckedChange = onToggleAscending
+            )
+        }
+    }
+}
+
 private fun FileSearchThumbnailCropMode.userFacingLabel(): String {
     return when (this) {
         FileSearchThumbnailCropMode.FIT -> "Fit"
         FileSearchThumbnailCropMode.CENTER_CROP -> "Center crop"
+    }
+}
+
+private fun FileSearchSortMode.userFacingLabel(): String {
+    return when (this) {
+        FileSearchSortMode.DATE -> "Date modified"
+        FileSearchSortMode.NAME -> "Name"
     }
 }
 

@@ -64,7 +64,12 @@ class FileSearchProvider(
             potentialRoots += FileSearchSettings.DOWNLOADS_ROOT_ID
         }
         if (potentialRoots.isEmpty()) return emptyList()
-        val matches = repository.search(normalized, potentialRoots)
+        val matches = repository.search(
+            queryText = normalized,
+            rootIds = potentialRoots,
+            sortMode = settings.sortMode,
+            sortAscending = settings.sortAscending
+        )
         if (matches.isEmpty()) return emptyList()
         val lowerQuery = normalized.lowercase()
         val results = mutableListOf<ProviderResult>()
