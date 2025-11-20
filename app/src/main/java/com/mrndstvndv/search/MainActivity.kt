@@ -112,6 +112,7 @@ class MainActivity : ComponentActivity() {
             val fileThumbnailRepository = remember(this@MainActivity) { FileThumbnailRepository.getInstance(this@MainActivity) }
             val rankingRepository = remember(this@MainActivity) { ProviderRankingRepository.getInstance(this@MainActivity) }
             val providerOrder by rankingRepository.providerOrder.collectAsState()
+            val useFrequencyRanking by rankingRepository.useFrequencyRanking.collectAsState()
             val providers = remember(this@MainActivity) {
                 buildList {
                     add(AppListProvider(this@MainActivity, defaultAppIconSize))
@@ -146,6 +147,8 @@ class MainActivity : ComponentActivity() {
                 val action = result?.onSelect ?: return
                 if (isPerformingAction) return
                 isPerformingAction = true
+                // Track result usage frequency when result is selected
+                rankingRepository.incrementResultUsage(result.id)
                 pendingAction = PendingAction(action, result.keepOverlayUntilExit)
             }
 
@@ -214,9 +217,33 @@ class MainActivity : ComponentActivity() {
                         aggregated.filterNot { it.aliasTarget == aliasTarget }
                     } ?: aggregated
                     
-                    // Sort results by provider ranking (not by load speed)
-                    val sortedResults = filtered.sortedBy { result ->
-                        rankingRepository.getRank(result.providerId)
+                    // Sort results:
+                    // If frequency ranking enabled:
+                    //   - Items with usage frequency appear first (sorted by frequency)
+                    //   - Items with no usage follow provider ranking
+                    // Otherwise: sort purely by provider ranking
+                    val sortedResults = if (useFrequencyRanking) {
+                        filtered.sortedWith(compareBy(
+                            { result ->
+                                // Primary: items with frequency (0) come first, then items without (-1)
+                                if (rankingRepository.getResultFrequency(result.id) > 0) 0 else 1
+                            },
+                            { result ->
+                                // Secondary: within each group, sort appropriately
+                                val freq = rankingRepository.getResultFrequency(result.id)
+                                if (freq > 0) {
+                                    // For frequent items, sort by frequency rank
+                                    rankingRepository.getResultFrequencyRank(result.id)
+                                } else {
+                                    // For non-frequent items, sort by provider rank
+                                    rankingRepository.getProviderRank(result.providerId)
+                                }
+                            }
+                        ))
+                    } else {
+                        filtered.sortedBy { result ->
+                            rankingRepository.getProviderRank(result.providerId)
+                        }
                     }
                     
                     val newResults = buildList {

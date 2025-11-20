@@ -7,15 +7,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONArray
 import org.json.JSONException
+import org.json.JSONObject
 
 /**
  * Manages provider display order/ranking.
- * Ensures results are always sorted by user-defined provider order, not by load speed.
+ * Supports both manual ranking and algorithmic frequency-based ranking.
+ * Ensures results are always sorted by user-configured provider order or frequency, not by load speed.
  */
 class ProviderRankingRepository(context: Context) {
     companion object {
         private const val PREF_NAME = "provider_rankings"
         private const val KEY_PROVIDER_ORDER = "provider_order"
+        private const val KEY_RESULT_FREQUENCY = "result_frequency"
+        private const val KEY_USE_FREQUENCY_RANKING = "use_frequency_ranking"
 
         // Default provider order (used if not yet customized by user)
         private val DEFAULT_PROVIDER_ORDER = listOf(
@@ -40,12 +44,38 @@ class ProviderRankingRepository(context: Context) {
     private val preferences: SharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
     private val _providerOrder = MutableStateFlow(loadProviderOrder())
     val providerOrder: StateFlow<List<String>> = _providerOrder
+    
+    private val _useFrequencyRanking = MutableStateFlow(loadUseFrequencyRanking())
+    val useFrequencyRanking: StateFlow<Boolean> = _useFrequencyRanking
+    
+    private val _resultFrequency = MutableStateFlow(loadResultFrequency())
+    val resultFrequency: StateFlow<Map<String, Int>> = _resultFrequency
+
 
     /**
-     * Get the rank/position of a provider (lower = higher priority)
+     * Get the rank/position of a provider (for provider-level sorting).
+     * Provider ranking is always based on manual order, not frequency.
      */
-    fun getRank(providerId: String): Int {
+    fun getProviderRank(providerId: String): Int {
         return _providerOrder.value.indexOf(providerId).takeIf { it >= 0 } ?: Int.MAX_VALUE
+    }
+
+    /**
+     * Get the frequency rank of a result (for result-level sorting when frequency mode is enabled).
+     * Higher frequency = higher priority (lower rank value).
+     */
+    fun getResultFrequencyRank(resultId: String): Int {
+        val freq = _resultFrequency.value[resultId] ?: 0
+        // Invert frequency so higher frequency results get lower rank values (sort ascending)
+        val maxFreq = _resultFrequency.value.values.maxOrNull() ?: 1
+        return (maxFreq - freq)
+    }
+
+    /**
+     * Get frequency count for a specific result.
+     */
+    fun getResultFrequency(resultId: String): Int {
+        return _resultFrequency.value[resultId] ?: 0
     }
 
     /**
@@ -84,6 +114,33 @@ class ProviderRankingRepository(context: Context) {
         }
     }
 
+    /**
+     * Increment the usage frequency of a result.
+     * Call this when a user selects a specific result.
+     */
+    fun incrementResultUsage(resultId: String) {
+        val current = _resultFrequency.value.toMutableMap()
+        current[resultId] = (current[resultId] ?: 0) + 1
+        _resultFrequency.value = current
+        saveResultFrequency(current)
+    }
+
+    /**
+     * Toggle between frequency-based and manual ranking modes.
+     */
+    fun setUseFrequencyRanking(enabled: Boolean) {
+        _useFrequencyRanking.value = enabled
+        saveUseFrequencyRanking(enabled)
+    }
+
+    /**
+     * Reset result frequency counts.
+     */
+    fun resetResultFrequency() {
+        _resultFrequency.value = emptyMap()
+        saveResultFrequency(emptyMap())
+    }
+
     private fun loadProviderOrder(): List<String> {
         return try {
             val json = preferences.getString(KEY_PROVIDER_ORDER, null)
@@ -102,6 +159,41 @@ class ProviderRankingRepository(context: Context) {
         preferences.edit {
             val array = JSONArray(order)
             putString(KEY_PROVIDER_ORDER, array.toString())
+        }
+    }
+
+    private fun loadUseFrequencyRanking(): Boolean {
+        return preferences.getBoolean(KEY_USE_FREQUENCY_RANKING, false)
+    }
+
+    private fun saveUseFrequencyRanking(enabled: Boolean) {
+        preferences.edit {
+            putBoolean(KEY_USE_FREQUENCY_RANKING, enabled)
+        }
+    }
+
+    private fun loadResultFrequency(): Map<String, Int> {
+        return try {
+            val json = preferences.getString(KEY_RESULT_FREQUENCY, null)
+            if (json != null) {
+                val obj = JSONObject(json)
+                buildMap {
+                    obj.keys().forEach { key ->
+                        put(key, obj.getInt(key))
+                    }
+                }
+            } else {
+                emptyMap()
+            }
+        } catch (e: JSONException) {
+            emptyMap()
+        }
+    }
+
+    private fun saveResultFrequency(frequency: Map<String, Int>) {
+        preferences.edit {
+            val obj = JSONObject(frequency)
+            putString(KEY_RESULT_FREQUENCY, obj.toString())
         }
     }
 }
