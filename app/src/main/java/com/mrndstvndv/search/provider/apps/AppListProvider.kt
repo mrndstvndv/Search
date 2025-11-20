@@ -1,29 +1,34 @@
 package com.mrndstvndv.search.provider.apps
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import androidx.activity.ComponentActivity
 import com.mrndstvndv.search.provider.Provider
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.util.loadAppIconBitmap
 import com.mrndstvndv.search.alias.AppLaunchAliasTarget
+import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 class AppListProvider(
-    private val activity: ComponentActivity,
-    private val iconSize: Int
+    private val context: Context,
+    private val iconSize: Int,
+    private val settingsRepository: ProviderSettingsRepository
 ) : Provider {
 
     override val id: String = "app-list"
     override val displayName: String = "Applications"
 
-    private val packageManager = activity.packageManager
+    private val packageManager = context.packageManager
     private val iconCache = mutableMapOf<String, Bitmap?>()
     private val applications by lazy { loadApplications() }
 
-    override fun canHandle(query: Query): Boolean = true
+    override fun canHandle(query: Query): Boolean {
+        return settingsRepository.providerSettings.value.firstOrNull { it.id == id }?.isEnabled ?: true
+    }
 
     override suspend fun query(query: Query): List<ProviderResult> {
         val normalized = query.trimmedText
@@ -41,8 +46,8 @@ class AppListProvider(
                 withContext(Dispatchers.Main) {
                     val launchIntent = packageManager.getLaunchIntentForPackage(entry.packageName)
                     if (launchIntent != null) {
-                        activity.startActivity(launchIntent)
-                        activity.finish()
+                        context.startActivity(launchIntent)
+                        // Removed activity.finish() as context doesn't have it
                     }
                 }
             }

@@ -2,11 +2,11 @@ package com.mrndstvndv.search.provider.text
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Base64
 import android.util.Patterns
-import androidx.activity.ComponentActivity
 import androidx.core.net.toUri
 import com.mrndstvndv.search.provider.Provider
 import com.mrndstvndv.search.provider.model.ProviderResult
@@ -14,18 +14,24 @@ import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
 import com.mrndstvndv.search.provider.settings.TextUtilitiesSettings
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlin.math.min
 
 class TextUtilitiesProvider(
-    private val activity: ComponentActivity,
+    private val context: Context,
     private val settingsRepository: ProviderSettingsRepository
 ) : Provider {
 
     override val id: String = "text-utilities"
     override val displayName: String = "Text Utilities"
 
-    override fun canHandle(query: Query): Boolean = parseCommand(query.text) != null
+    override fun canHandle(query: Query): Boolean {
+        if (settingsRepository.providerSettings.value.firstOrNull { it.id == id }?.isEnabled == false) {
+            return false
+        }
+        return parseCommand(query.text) != null
+    }
 
     override suspend fun query(query: Query): List<ProviderResult> {
         val parsed = parseCommand(query.text) ?: return emptyList()
@@ -56,7 +62,6 @@ class TextUtilitiesProvider(
             } else {
                 withContext(Dispatchers.Main) {
                     copyToClipboard(command.utility.displayName, outcome.output)
-                    finishOverlay()
                 }
             }
         }
@@ -106,7 +111,7 @@ class TextUtilitiesProvider(
     }
 
     private fun copyToClipboard(label: String, value: String) {
-        val clipboard = activity.getSystemService(ClipboardManager::class.java)
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
         val clip = ClipData.newPlainText(label, value)
         clipboard?.setPrimaryClip(clip)
     }
@@ -114,13 +119,8 @@ class TextUtilitiesProvider(
     private suspend fun openUri(uri: Uri) {
         withContext(Dispatchers.Main) {
             val intent = Intent(Intent.ACTION_VIEW, uri)
-            activity.startActivity(intent)
-            finishOverlay()
+            context.startActivity(intent)
         }
-    }
-
-    private fun finishOverlay() {
-        activity.finish()
     }
 
     private fun parseCommand(rawText: String): ParsedCommand? {

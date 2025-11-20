@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mrndstvndv.search.provider.settings.WebSearchSettings
 import com.mrndstvndv.search.provider.settings.WebSearchSite
+import com.mrndstvndv.search.ui.settings.SettingsToggleRow
 
 @Composable
 fun WebSearchProviderSettingsDialog(
@@ -88,7 +89,7 @@ fun WebSearchProviderSettingsDialog(
             errorMessage = "A site with that name already exists"
             return
         }
-        val newSite = WebSearchSite(id = candidateId, displayName = name, urlTemplate = template)
+        val newSite = WebSearchSite(id = candidateId, displayName = name, urlTemplate = template, isEnabled = true)
         sites = sites + newSite
         defaultSiteId = candidateId
         newSiteName = ""
@@ -143,6 +144,14 @@ fun WebSearchProviderSettingsDialog(
                                 }
                             }
                         }
+                        SettingsToggleRow(
+                            title = "Enabled",
+                            subtitle = "Allow this site to appear in search results.",
+                            checked = site.isEnabled,
+                            onCheckedChange = { newValue ->
+                                updateSite(index) { it.copy(isEnabled = newValue) }
+                            }
+                        )
                         Spacer(modifier = Modifier.height(4.dp))
                         TextField(
                             value = site.displayName,

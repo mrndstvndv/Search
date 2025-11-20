@@ -1,9 +1,6 @@
 package com.mrndstvndv.search
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -12,28 +9,33 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.mrndstvndv.search.alias.AliasRepository
 import com.mrndstvndv.search.provider.files.FileSearchRepository
+import com.mrndstvndv.search.provider.files.FileThumbnailRepository
 import com.mrndstvndv.search.provider.ProviderRankingRepository
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
 import com.mrndstvndv.search.settings.AssistantRoleManager
 import com.mrndstvndv.search.ui.settings.GeneralSettingsScreen
+import com.mrndstvndv.search.ui.settings.ProviderSettingsScreen
 import com.mrndstvndv.search.ui.settings.WebSearchSettingsScreen
 import com.mrndstvndv.search.ui.theme.SearchTheme
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.os.Bundle
+import androidx.activity.ComponentActivity
 
 class SettingsActivity : ComponentActivity() {
     private val assistantRoleManager by lazy { AssistantRoleManager(this) }
     private val defaultAssistantState = mutableStateOf(false)
 
-    private enum class Screen { General, WebSearch }
-
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
         super.onCreate(savedInstanceState)
+        installSplashScreen()
         enableEdgeToEdge()
 
         setContent {
@@ -41,17 +43,28 @@ class SettingsActivity : ComponentActivity() {
             val settingsRepository = remember { ProviderSettingsRepository(this@SettingsActivity) }
             val fileSearchRepository = remember { FileSearchRepository.getInstance(this@SettingsActivity) }
             val rankingRepository = remember { ProviderRankingRepository.getInstance(this@SettingsActivity) }
+            val fileThumbnailRepository = remember { FileThumbnailRepository.getInstance(this@SettingsActivity) }
             val isDefaultAssistant by defaultAssistantState
             val motionPreferences by settingsRepository.motionPreferences.collectAsState()
             val webSearchSettings by settingsRepository.webSearchSettings.collectAsState()
-            var currentScreen by remember { mutableStateOf(Screen.General) }
             val appName = getString(R.string.app_name)
+            val navController = rememberNavController()
+            val providers = remember {
+                com.mrndstvndv.search.provider.Providers(
+                    context = this@SettingsActivity,
+                    settingsRepository = settingsRepository,
+                    fileSearchRepository = fileSearchRepository,
+                    fileThumbnailRepository = fileThumbnailRepository
+                ).get()
+            }
+
             SearchTheme(motionPreferences = motionPreferences) {
                 LaunchedEffect(Unit) {
                     refreshDefaultAssistantState()
                 }
-                when (currentScreen) {
-                    Screen.General -> {
+
+                NavHost(navController = navController, startDestination = "general") {
+                    composable("general") {
                         GeneralSettingsScreen(
                             aliasRepository = aliasRepository,
                             settingsRepository = settingsRepository,
@@ -60,19 +73,26 @@ class SettingsActivity : ComponentActivity() {
                             appName = appName,
                             isDefaultAssistant = isDefaultAssistant,
                             onRequestSetDefaultAssistant = { assistantRoleManager.launchDefaultAssistantSettings() },
-                            onOpenWebSearchSettings = { currentScreen = Screen.WebSearch },
+                            onOpenWebSearchSettings = { navController.navigate("web_search") },
+                            onOpenProviderSettings = { navController.navigate("provider_settings") },
                             onClose = { finish() }
                         )
                     }
-                    Screen.WebSearch -> {
-                        BackHandler { currentScreen = Screen.General }
+                    composable("web_search") {
                         WebSearchSettingsScreen(
                             initialSettings = webSearchSettings,
-                            onBack = { currentScreen = Screen.General },
+                            onBack = { navController.popBackStack() },
                             onSave = { newSettings ->
                                 settingsRepository.saveWebSearchSettings(newSettings)
-                                currentScreen = Screen.General
+                                navController.popBackStack()
                             }
+                        )
+                    }
+                    composable("provider_settings") {
+                        ProviderSettingsScreen(
+                            settingsRepository = settingsRepository,
+                            providers = providers,
+                            onNavigateToWebSearchSettings = { navController.navigate("web_search") }
                         )
                     }
                 }

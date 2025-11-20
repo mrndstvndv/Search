@@ -2,22 +2,28 @@ package com.mrndstvndv.search.provider.calculator
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import androidx.activity.ComponentActivity
+import android.content.Context
 import com.mrndstvndv.search.provider.Provider
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.util.CalculatorEngine
+import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 class CalculatorProvider(
-    private val activity: ComponentActivity
+    private val context: Context,
+    private val settingsRepository: ProviderSettingsRepository
 ) : Provider {
 
     override val id: String = "calculator"
     override val displayName: String = "Calculator"
 
     override fun canHandle(query: Query): Boolean {
+        if (settingsRepository.providerSettings.value.firstOrNull { it.id == id }?.isEnabled == false) {
+            return false
+        }
         return CalculatorEngine.isExpression(query.trimmedText)
     }
 
@@ -28,7 +34,6 @@ class CalculatorProvider(
         val action: suspend () -> Unit = {
             withContext(Dispatchers.Main) {
                 copyToClipboard(result)
-                activity.finish()
             }
         }
 
@@ -44,7 +49,7 @@ class CalculatorProvider(
     }
 
     private fun copyToClipboard(value: String) {
-        val clipboard = activity.getSystemService(ClipboardManager::class.java)
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
         val clip = ClipData.newPlainText("calculator", value)
         clipboard?.setPrimaryClip(clip)
     }

@@ -79,6 +79,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.UUID
 import kotlin.math.roundToInt
+import com.mrndstvndv.search.ui.settings.SettingsToggleRow
 
 @Composable
 fun GeneralSettingsScreen(
@@ -90,6 +91,7 @@ fun GeneralSettingsScreen(
     isDefaultAssistant: Boolean,
     onRequestSetDefaultAssistant: () -> Unit,
     onOpenWebSearchSettings: () -> Unit,
+    onOpenProviderSettings: () -> Unit,
     onClose: () -> Unit
 ) {
     val aliasEntries by aliasRepository.aliases.collectAsState()
@@ -397,6 +399,21 @@ fun GeneralSettingsScreen(
             }
 
             item {
+                SettingsSection(
+                    title = "Providers",
+                    subtitle = "Enable, disable, and configure search providers."
+                ) {
+                    SettingsCardGroup {
+                        SettingsActionRow(
+                            title = "Manage providers",
+                            subtitle = "Choose which providers are enabled.",
+                            onClick = onOpenProviderSettings
+                        )
+                    }
+                }
+            }
+
+            item {
                 ProviderRankingSection(rankingRepository)
             }
         }
@@ -532,39 +549,6 @@ private fun SettingsActionRow(
     }
 }
 
-@Composable
-private fun SettingsToggleRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ThumbnailCropModeRow(
     selectedMode: FileSearchThumbnailCropMode,

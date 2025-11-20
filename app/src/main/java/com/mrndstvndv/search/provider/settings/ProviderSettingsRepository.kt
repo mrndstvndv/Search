@@ -22,6 +22,7 @@ class ProviderSettingsRepository(context: Context) {
         private const val KEY_ANIMATIONS_ENABLED = "animations_enabled"
         private const val KEY_TEXT_UTILITIES = "text_utilities"
         private const val KEY_FILE_SEARCH = "file_search"
+        private const val KEY_PROVIDER_SETTINGS = "provider_settings"
         private const val DEFAULT_BACKGROUND_OPACITY = 0.35f
         private const val DEFAULT_BACKGROUND_BLUR_STRENGTH = 0.5f
         private const val DEFAULT_ACTIVITY_INDICATOR_DELAY_MS = 250
@@ -33,6 +34,7 @@ class ProviderSettingsRepository(context: Context) {
     private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
             KEY_FILE_SEARCH -> _fileSearchSettings.value = loadFileSearchSettings()
+            KEY_PROVIDER_SETTINGS -> _providerSettings.value = loadProviderSettings()
         }
     }
 
@@ -60,9 +62,27 @@ class ProviderSettingsRepository(context: Context) {
     private val _fileSearchSettings = MutableStateFlow(loadFileSearchSettings())
     val fileSearchSettings: StateFlow<FileSearchSettings> = _fileSearchSettings
 
+    private val _providerSettings = MutableStateFlow(loadProviderSettings())
+    val providerSettings: StateFlow<List<ProviderSettings>> = _providerSettings
+
     init {
         preferences.registerOnSharedPreferenceChangeListener(preferenceListener)
     }
+
+    fun setProviderEnabled(providerId: String, isEnabled: Boolean) {
+        val currentSettings = _providerSettings.value.toMutableList()
+        val existingSettingIndex = currentSettings.indexOfFirst { it.id == providerId }
+
+        if (existingSettingIndex != -1) {
+            currentSettings[existingSettingIndex] = currentSettings[existingSettingIndex].copy(isEnabled = isEnabled)
+        } else {
+            currentSettings.add(ProviderSettings(id = providerId, isEnabled = isEnabled))
+        }
+
+        saveProviderSettings(currentSettings)
+        _providerSettings.value = currentSettings
+    }
+
 
     fun saveWebSearchSettings(settings: WebSearchSettings) {
         preferences.edit { putString(KEY_WEB_SEARCH, settings.toJsonString()) }
@@ -237,6 +257,26 @@ class ProviderSettingsRepository(context: Context) {
         preferences.edit { putString(KEY_FILE_SEARCH, settings.toJsonString()) }
         _fileSearchSettings.value = settings
     }
+
+    private fun loadProviderSettings(): List<ProviderSettings> {
+        val json = preferences.getString(KEY_PROVIDER_SETTINGS, null) ?: return emptyList()
+        return try {
+            val jsonArray = JSONArray(json)
+            List(jsonArray.length()) { i ->
+                ProviderSettings.fromJson(jsonArray.getJSONObject(i))
+            }.filterNotNull()
+        } catch (ignored: JSONException) {
+            emptyList()
+        }
+    }
+
+    private fun saveProviderSettings(settings: List<ProviderSettings>) {
+        val jsonArray = JSONArray()
+        settings.forEach { jsonArray.put(it.toJson()) }
+        preferences.edit {
+            putString(KEY_PROVIDER_SETTINGS, jsonArray.toString())
+        }
+    }
 }
 
 data class WebSearchSettings(
@@ -248,37 +288,44 @@ data class WebSearchSettings(
             WebSearchSite(
                 id = "bing",
                 displayName = "Bing",
-                urlTemplate = "https://www.bing.com/search?q={query}&form=QBLH"
+                urlTemplate = "https://www.bing.com/search?q={query}&form=QBLH",
+                isEnabled = true
             ),
             WebSearchSite(
                 id = "duckduckgo",
                 displayName = "DuckDuckGo",
-                urlTemplate = "https://duckduckgo.com/?q={query}"
+                urlTemplate = "https://duckduckgo.com/?q={query}",
+                isEnabled = true
             ),
             WebSearchSite(
                 id = "google",
                 displayName = "Google",
-                urlTemplate = "https://www.google.com/search?q={query}"
+                urlTemplate = "https://www.google.com/search?q={query}",
+                isEnabled = true
             ),
             WebSearchSite(
                 id = "youtube",
                 displayName = "YouTube",
-                urlTemplate = "https://m.youtube.com/results?search_query={query}"
+                urlTemplate = "https://m.youtube.com/results?search_query={query}",
+                isEnabled = true
             ),
             WebSearchSite(
                 id = "twitter",
                 displayName = "Twitter",
-                urlTemplate = "https://x.com/search?q={query}"
+                urlTemplate = "https://x.com/search?q={query}",
+                isEnabled = true
             ),
             WebSearchSite(
                 id = "playstore",
                 displayName = "Play Store",
-                urlTemplate = "https://play.google.com/store/search?q={query}&c=apps"
+                urlTemplate = "https://play.google.com/store/search?q={query}&c=apps",
+                isEnabled = true
             ),
             WebSearchSite(
                 id = "github",
                 displayName = "GitHub",
-                urlTemplate = "https://github.com/search?q={query}"
+                urlTemplate = "https://github.com/search?q={query}",
+                isEnabled = true
             )
         )
         const val QUERY_PLACEHOLDER = "{query}"
@@ -323,7 +370,8 @@ data class WebSearchSettings(
 data class WebSearchSite(
     val id: String,
     val displayName: String,
-    val urlTemplate: String
+    val urlTemplate: String,
+    val isEnabled: Boolean
 ) {
     fun buildUrl(query: String): String {
         val template = normalizedTemplate()
@@ -346,6 +394,7 @@ data class WebSearchSite(
             put("id", id)
             put("displayName", displayName)
             put("urlTemplate", urlTemplate)
+            put("isEnabled", isEnabled)
         }
     }
 
@@ -355,7 +404,8 @@ data class WebSearchSite(
             val id = json.opt("id") as? String ?: return null
             val name = json.opt("displayName") as? String ?: return null
             val template = json.opt("urlTemplate") as? String ?: return null
-            return WebSearchSite(id = id, displayName = name, urlTemplate = template)
+            val isEnabled = json.optBoolean("isEnabled", true)
+            return WebSearchSite(id = id, displayName = name, urlTemplate = template, isEnabled = isEnabled)
         }
     }
 }

@@ -112,13 +112,18 @@ class MainActivity : ComponentActivity() {
             val rankingRepository = remember(this@MainActivity) { ProviderRankingRepository.getInstance(this@MainActivity) }
             val providerOrder by rankingRepository.providerOrder.collectAsState()
             val useFrequencyRanking by rankingRepository.useFrequencyRanking.collectAsState()
+            val providerSettings by settingsRepository.providerSettings.collectAsState()
             val providers = remember(this@MainActivity) {
-                buildList {
-                    add(AppListProvider(this@MainActivity, defaultAppIconSize))
-                    add(CalculatorProvider(this@MainActivity))
-                    add(TextUtilitiesProvider(this@MainActivity, settingsRepository))
-                    add(FileSearchProvider(this@MainActivity, settingsRepository, fileSearchRepository, fileThumbnailRepository))
-                    add(WebSearchProvider(this@MainActivity, settingsRepository))
+                com.mrndstvndv.search.provider.Providers(
+                    context = this@MainActivity,
+                    settingsRepository = settingsRepository,
+                    fileSearchRepository = fileSearchRepository,
+                    fileThumbnailRepository = fileThumbnailRepository
+                ).get()
+            }
+            val enabledProviders = remember(providers, providerSettings) {
+                providers.filter { provider ->
+                    providerSettings.firstOrNull { it.id == provider.id }?.isEnabled ?: true
                 }
             }
 
@@ -184,10 +189,9 @@ class MainActivity : ComponentActivity() {
                     val match = aliasRepository.matchAlias(currentText)
                     val normalizedText = match?.remainingQuery ?: currentText
                     val query = Query(normalizedText, originalText = currentText)
-
                     val aggregated = mutableListOf<ProviderResult>()
                     val seenIds = mutableSetOf<String>()
-                    val matchingProviders = providers.filter { it.canHandle(query) }
+                    val matchingProviders = enabledProviders.filter { it.canHandle(query) }
                     val aliasResult = match?.let { buildAliasResult(it.entry, normalizedText, webSearchSettings) }
 
                     // Use supervisorScope to isolate provider failures
