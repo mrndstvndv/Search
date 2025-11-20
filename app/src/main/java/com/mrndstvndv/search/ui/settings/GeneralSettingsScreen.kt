@@ -753,7 +753,6 @@ private fun FileSearchRootsCard(
             onToggle = onToggleDownloads,
             onRescan = onRescanDownloads
         )
-        SettingsDivider()
         val firstErroredRoot = settings.roots.firstNotNullOfOrNull { root ->
             val metadata = scanMetadata[root.id]
             if (metadata?.state == FileSearchScanState.ERROR) root to metadata else null
@@ -766,6 +765,7 @@ private fun FileSearchRootsCard(
             )
         }
         if (settings.roots.isEmpty()) {
+            SettingsDivider()
             Text(
                 modifier = Modifier
                     .fillMaxWidth()

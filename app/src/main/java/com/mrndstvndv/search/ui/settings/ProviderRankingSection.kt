@@ -11,11 +11,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,12 +41,12 @@ fun ProviderRankingSection(rankingRepository: ProviderRankingRepository) {
     val providerOrder by rankingRepository.providerOrder.collectAsState()
     val useFrequencyRanking by rankingRepository.useFrequencyRanking.collectAsState()
     val resultFrequency by rankingRepository.resultFrequency.collectAsState()
-    var showFrequencyModal by remember { mutableStateOf(false) }
+    var showFrequencyDialog by remember { mutableStateOf(false) }
 
-    if (showFrequencyModal) {
-        FrequencyRankingModal(
+    if (showFrequencyDialog) {
+        FrequencyRankingDialog(
             frequency = resultFrequency,
-            onDismiss = { showFrequencyModal = false },
+            onDismiss = { showFrequencyDialog = false },
             onReset = { rankingRepository.resetResultFrequency() }
         )
     }
@@ -76,7 +77,7 @@ fun ProviderRankingSection(rankingRepository: ProviderRankingRepository) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showFrequencyModal = true }
+                        .clickable { showFrequencyDialog = true }
                         .padding(horizontal = 20.dp, vertical = 18.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -137,89 +138,60 @@ fun ProviderRankingSection(rankingRepository: ProviderRankingRepository) {
 }
 
 @Composable
-private fun FrequencyRankingModal(
+private fun FrequencyRankingDialog(
     frequency: Map<String, Int>,
     onDismiss: () -> Unit,
     onReset: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 500.dp)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "Frequency data") },
+        text = {
+            Column {
                 Text(
-                    text = "Frequency Ranking Data",
-                    style = MaterialTheme.typography.headlineSmall
+                    text = "View or reset how often individual results are used.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Close"
+                Spacer(modifier = Modifier.height(12.dp))
+                if (frequency.isEmpty()) {
+                    Text(
+                        text = "No usage data yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-            }
-
-            HorizontalDivider()
-
-            // Sorted frequency list
-            if (frequency.isEmpty()) {
-                Text(
-                    text = "No usage data yet",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(16.dp)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    items(
-                        frequency.entries
-                            .sortedByDescending { it.value }
-                            .toList()
-                    ) { (resultId, count) ->
-                        FrequencyItem(resultId = resultId, count = count)
+                } else {
+                    val sortedEntries = frequency.entries
+                        .sortedByDescending { it.value }
+                        .toList()
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 320.dp)
+                    ) {
+                        itemsIndexed(sortedEntries) { index, (resultId, count) ->
+                            FrequencyItem(resultId = resultId, count = count)
+                            if (index < sortedEntries.lastIndex) {
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                )
+                            }
+                        }
                     }
                 }
             }
-
-            HorizontalDivider()
-
-            // Reset button
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onReset) {
-                    Text(text = "Reset data")
-                }
-                TextButton(onClick = onDismiss) {
-                    Text(text = "Done")
-                }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Done")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onReset) {
+                Text(text = "Reset data")
             }
         }
-    }
+    )
 }
 
 @Composable
