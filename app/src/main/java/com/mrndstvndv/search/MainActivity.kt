@@ -60,6 +60,7 @@ import com.mrndstvndv.search.provider.files.FileSearchRepository
 import com.mrndstvndv.search.provider.files.FileThumbnailRepository
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
+import com.mrndstvndv.search.provider.ProviderRankingRepository
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
 import com.mrndstvndv.search.provider.settings.WebSearchSettings
 import com.mrndstvndv.search.provider.text.TextUtilitiesProvider
@@ -109,6 +110,8 @@ class MainActivity : ComponentActivity() {
 
             val fileSearchRepository = remember(this@MainActivity) { FileSearchRepository.getInstance(this@MainActivity) }
             val fileThumbnailRepository = remember(this@MainActivity) { FileThumbnailRepository.getInstance(this@MainActivity) }
+            val rankingRepository = remember(this@MainActivity) { ProviderRankingRepository.getInstance(this@MainActivity) }
+            val providerOrder by rankingRepository.providerOrder.collectAsState()
             val providers = remember(this@MainActivity) {
                 buildList {
                     add(AppListProvider(this@MainActivity, defaultAppIconSize))
@@ -211,9 +214,14 @@ class MainActivity : ComponentActivity() {
                         aggregated.filterNot { it.aliasTarget == aliasTarget }
                     } ?: aggregated
                     
+                    // Sort results by provider ranking (not by load speed)
+                    val sortedResults = filtered.sortedBy { result ->
+                        rankingRepository.getRank(result.providerId)
+                    }
+                    
                     val newResults = buildList {
                         aliasResult?.let { add(it) }
-                        addAll(filtered)
+                        addAll(sortedResults)
                     }
                     
                     // Only update UI if results actually changed

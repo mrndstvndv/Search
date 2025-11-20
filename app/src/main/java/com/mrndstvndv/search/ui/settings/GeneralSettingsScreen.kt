@@ -59,6 +59,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.mrndstvndv.search.alias.AliasRepository
 import com.mrndstvndv.search.provider.files.FileSearchRepository
+import com.mrndstvndv.search.provider.ProviderRankingRepository
 import com.mrndstvndv.search.provider.settings.FileSearchRoot
 import com.mrndstvndv.search.provider.settings.FileSearchScanMetadata
 import com.mrndstvndv.search.provider.settings.FileSearchScanState
@@ -75,6 +76,7 @@ fun GeneralSettingsScreen(
     aliasRepository: AliasRepository,
     settingsRepository: ProviderSettingsRepository,
     fileSearchRepository: FileSearchRepository,
+    rankingRepository: ProviderRankingRepository,
     appName: String,
     isDefaultAssistant: Boolean,
     onRequestSetDefaultAssistant: () -> Unit,
@@ -363,6 +365,10 @@ fun GeneralSettingsScreen(
                         }
                     }
                 }
+            }
+
+            item {
+                ProviderRankingSection(rankingRepository)
             }
         }
     }
