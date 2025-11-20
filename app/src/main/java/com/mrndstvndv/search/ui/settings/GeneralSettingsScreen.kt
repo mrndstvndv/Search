@@ -8,6 +8,7 @@ import android.os.Environment
 import android.provider.Settings
 import android.text.format.DateUtils
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -1093,6 +1094,19 @@ private fun handleFolderSelection(
     settingsRepository: ProviderSettingsRepository,
     fileSearchRepository: FileSearchRepository
 ) {
+    val existingRoot = settingsRepository.fileSearchSettings.value.roots.firstOrNull { it.uri == uri }
+    if (existingRoot != null) {
+        val folderName = existingRoot.displayName.ifBlank {
+            existingRoot.uri.lastPathSegment ?: "Folder"
+        }
+        Toast.makeText(
+            context,
+            "\"$folderName\" is already indexed",
+            Toast.LENGTH_SHORT
+        ).show()
+        return
+    }
+
     val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
     runCatching {
         context.contentResolver.takePersistableUriPermission(uri, flags)
