@@ -180,7 +180,6 @@ class SettingsActivity : ComponentActivity() {
                             onBack = { currentScreen = Screen.Providers },
                             onSave = { newSettings ->
                                 settingsRepository.saveWebSearchSettings(newSettings)
-                                currentScreen = Screen.Providers
                             }
                         )
                     }

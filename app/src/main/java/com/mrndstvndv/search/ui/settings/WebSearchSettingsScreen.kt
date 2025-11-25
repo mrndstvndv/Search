@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,10 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,10 +41,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.mrndstvndv.search.provider.settings.WebSearchSettings
 import com.mrndstvndv.search.provider.settings.WebSearchSite
+import com.mrndstvndv.search.ui.components.ScrimDialog
 
 @Composable
 fun WebSearchSettingsScreen(
@@ -53,9 +56,8 @@ fun WebSearchSettingsScreen(
 ) {
     var sites by remember { mutableStateOf(initialSettings.sites) }
     var defaultSiteId by remember { mutableStateOf(initialSettings.defaultSiteId) }
-    var newSiteName by remember { mutableStateOf("") }
-    var newSiteTemplate by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var editingSite by remember { mutableStateOf<Pair<Int, WebSearchSite>?>(null) }
+    var isAddDialogOpen by remember { mutableStateOf(false) }
     val placeholder = WebSearchSettings.QUERY_PLACEHOLDER
 
     LaunchedEffect(initialSettings) {
@@ -65,10 +67,20 @@ fun WebSearchSettingsScreen(
 
     val allTemplatesValid = sites.all { it.urlTemplate.contains(placeholder) }
 
+    fun saveSettings() {
+        val resolvedDefault = sites.firstOrNull { it.id == defaultSiteId }?.id
+            ?: sites.firstOrNull()?.id
+            ?: ""
+        if (resolvedDefault.isNotBlank() && allTemplatesValid) {
+            onSave(WebSearchSettings(resolvedDefault, sites))
+        }
+    }
+
     fun updateSite(index: Int, updater: (WebSearchSite) -> WebSearchSite) {
         val mutable = sites.toMutableList()
         mutable[index] = updater(mutable[index])
         sites = mutable
+        saveSettings()
     }
 
     fun removeSite(index: Int) {
@@ -79,36 +91,63 @@ fun WebSearchSettingsScreen(
         if (defaultSiteId == removed.id) {
             defaultSiteId = mutable.firstOrNull()?.id.orEmpty()
         }
+        saveSettings()
     }
 
-    fun addCustomSite() {
-        val name = newSiteName.trim()
-        val template = newSiteTemplate.trim()
-        if (name.isBlank() || template.isBlank()) {
-            errorMessage = "Name and template are required"
-            return
+    fun addCustomSite(name: String, template: String, onError: (String) -> Unit): Boolean {
+        val trimmedName = name.trim()
+        val trimmedTemplate = template.trim()
+        if (trimmedName.isBlank() || trimmedTemplate.isBlank()) {
+            onError("Name and template are required")
+            return false
         }
-        if (!template.contains(placeholder)) {
-            errorMessage = "Template must include $placeholder"
-            return
+        if (!trimmedTemplate.contains(placeholder)) {
+            onError("Template must include $placeholder")
+            return false
         }
-        val candidateId = name.lowercase()
+        val candidateId = trimmedName.lowercase()
             .replace("[^a-z0-9]+".toRegex(), "-")
             .trim('-')
-            .ifBlank { name.lowercase() }
+            .ifBlank { trimmedName.lowercase() }
         if (sites.any { it.id == candidateId }) {
-            errorMessage = "A site with that name already exists"
-            return
+            onError("A site with that name already exists")
+            return false
         }
-        val newSite = WebSearchSite(id = candidateId, displayName = name, urlTemplate = template)
+        val newSite = WebSearchSite(id = candidateId, displayName = trimmedName, urlTemplate = trimmedTemplate)
         sites = sites + newSite
-        defaultSiteId = candidateId
-        newSiteName = ""
-        newSiteTemplate = ""
-        errorMessage = null
+        saveSettings()
+        return true
     }
 
-    val isSaveEnabled = sites.isNotEmpty() && allTemplatesValid && defaultSiteId.isNotBlank()
+    // Edit dialog
+    editingSite?.let { (index, site) ->
+        WebSearchSiteEditDialog(
+            site = site,
+            canRemove = sites.size > 1,
+            onDismiss = { editingSite = null },
+            onSave = { updatedSite ->
+                updateSite(index) { updatedSite }
+                editingSite = null
+            },
+            onRemove = {
+                removeSite(index)
+                editingSite = null
+            }
+        )
+    }
+
+    // Add dialog
+    if (isAddDialogOpen) {
+        WebSearchSiteAddDialog(
+            placeholder = placeholder,
+            onDismiss = { isAddDialogOpen = false },
+            onAdd = { name, template, onError ->
+                if (addCustomSite(name, template, onError)) {
+                    isAddDialogOpen = false
+                }
+            }
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -136,10 +175,11 @@ fun WebSearchSettingsScreen(
                             WebSearchSiteRow(
                                 site = site,
                                 isDefault = defaultSiteId == site.id,
-                                canRemove = sites.size > 1,
-                                onSetDefault = { defaultSiteId = site.id },
-                                onUpdate = { updater -> updateSite(index, updater) },
-                                onRemove = { removeSite(index) }
+                                onSetDefault = {
+                                    defaultSiteId = site.id
+                                    saveSettings()
+                                },
+                                onEdit = { editingSite = index to site }
                             )
                             if (index < sites.lastIndex) {
                                 HorizontalDivider(
@@ -148,56 +188,15 @@ fun WebSearchSettingsScreen(
                                 )
                             }
                         }
-                    }
-                }
-            }
-
-            item {
-                SettingsSection(
-                    title = "Add Custom Site",
-                    subtitle = "Add a new search engine to the list."
-                ) {
-                    SettingsCardGroup {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            TextField(
-                                value = newSiteName,
-                                onValueChange = { newSiteName = it },
-                                label = { Text("Display name") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent
-                                )
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            TextField(
-                                value = newSiteTemplate,
-                                onValueChange = { newSiteTemplate = it },
-                                label = { Text("URL template") },
-                                supportingText = { Text(text = "Include $placeholder") },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent
-                                )
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            if (errorMessage != null) {
-                                Text(
-                                    text = errorMessage!!,
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(bottom = 12.dp)
-                                )
-                            }
-
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                Button(onClick = ::addCustomSite) {
-                                    Text(text = "Add site")
-                                }
-                            }
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        TextButton(
+                            onClick = { isAddDialogOpen = true },
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(text = "Add Search Engine")
                         }
                     }
                 }
@@ -211,42 +210,6 @@ fun WebSearchSettingsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(horizontal = 20.dp)
                     )
-                }
-            }
-            
-            // Spacer for FAB
-            item {
-                Spacer(modifier = Modifier.height(80.dp))
-            }
-        }
-
-        // Floating Save Button
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth(),
-            shadowElevation = 8.dp,
-            color = MaterialTheme.colorScheme.surface
-        ) {
-            Row(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                Button(
-                    onClick = {
-                        val resolvedDefault = sites.firstOrNull { it.id == defaultSiteId }?.id
-                            ?: sites.firstOrNull()?.id
-                            ?: ""
-                        if (resolvedDefault.isNotBlank()) {
-                            onSave(WebSearchSettings(resolvedDefault, sites))
-                        }
-                    },
-                    enabled = isSaveEnabled,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = "Save Changes")
                 }
             }
         }
@@ -286,87 +249,249 @@ private fun WebSearchHeader(onBack: () -> Unit) {
 private fun WebSearchSiteRow(
     site: WebSearchSite,
     isDefault: Boolean,
-    canRemove: Boolean,
     onSetDefault: () -> Unit,
-    onUpdate: ((WebSearchSite) -> WebSearchSite) -> Unit,
-    onRemove: () -> Unit
+    onEdit: () -> Unit
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(20.dp)
+            .height(IntrinsicSize.Min),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth()
+        // Tap area with display name and URL template
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onEdit)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { onSetDefault() }
-            ) {
-                RadioButton(
-                    selected = isDefault,
-                    onClick = onSetDefault
+            Text(
+                text = site.displayName,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = site.urlTemplate,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        // Vertical divider
+        VerticalDivider(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(vertical = 8.dp),
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+
+        // RadioButton for setting default
+        RadioButton(
+            selected = isDefault,
+            onClick = onSetDefault,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp).padding(end = 12.dp)
+        )
+    }
+}
+
+@Composable
+private fun WebSearchSiteEditDialog(
+    site: WebSearchSite,
+    canRemove: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (WebSearchSite) -> Unit,
+    onRemove: () -> Unit
+) {
+    var displayName by remember { mutableStateOf(site.displayName) }
+    var urlTemplate by remember { mutableStateOf(site.urlTemplate) }
+    val placeholder = WebSearchSettings.QUERY_PLACEHOLDER
+    val isValid = displayName.isNotBlank() && urlTemplate.contains(placeholder)
+
+    ScrimDialog(
+        onDismiss = onDismiss
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Text(
+                text = "Edit Search Engine",
+                style = MaterialTheme.typography.titleLarge
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextField(
+                value = displayName,
+                onValueChange = { displayName = it },
+                label = { Text("Display name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TextField(
+                value = urlTemplate,
+                onValueChange = { urlTemplate = it },
+                label = { Text("URL template") },
+                supportingText = { Text(text = "Include $placeholder") },
+                isError = !urlTemplate.contains(placeholder),
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
+                )
+            )
+
+            if (!urlTemplate.contains(placeholder)) {
                 Text(
-                    text = if (isDefault) "Default" else "Set as default",
-                    style = MaterialTheme.typography.bodyMedium
+                    text = "Missing $placeholder",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
-            if (canRemove) {
-                IconButton(onClick = onRemove) {
-                    Icon(
-                        imageVector = Icons.Rounded.Delete,
-                        contentDescription = "Remove site",
-                        tint = MaterialTheme.colorScheme.error
-                    )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (canRemove) {
+                    TextButton(
+                        onClick = onRemove
+                    ) {
+                        Text(
+                            text = "Remove",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(1.dp))
+                }
+
+                Row {
+                    TextButton(onClick = onDismiss) {
+                        Text(text = "Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            onSave(site.copy(displayName = displayName.trim(), urlTemplate = urlTemplate.trim()))
+                        },
+                        enabled = isValid
+                    ) {
+                        Text(text = "Save")
+                    }
                 }
             }
         }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        TextField(
-            value = site.displayName,
-            onValueChange = { newValue ->
-                onUpdate { it.copy(displayName = newValue) }
-            },
-            label = { Text("Display name") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent
-            )
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        TextField(
-            value = site.urlTemplate,
-            onValueChange = { newValue ->
-                onUpdate { it.copy(urlTemplate = newValue) }
-            },
-            label = { Text("URL template") },
-            modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent
-            )
-        )
-        
-        if (!site.urlTemplate.contains(WebSearchSettings.QUERY_PLACEHOLDER)) {
+    }
+}
+
+
+@Composable
+private fun WebSearchSiteAddDialog(
+    placeholder: String,
+    onDismiss: () -> Unit,
+    onAdd: (name: String, template: String, onError: (String) -> Unit) -> Unit
+) {
+    var displayName by remember { mutableStateOf("") }
+    var urlTemplate by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val isValid = displayName.isNotBlank() && urlTemplate.contains(placeholder)
+
+    ScrimDialog(
+        onDismiss = onDismiss
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp)
+        ) {
             Text(
-                text = "Missing ${WebSearchSettings.QUERY_PLACEHOLDER}",
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(top = 4.dp)
+                text = "Add Search Engine",
+                style = MaterialTheme.typography.titleLarge
             )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextField(
+                value = displayName,
+                onValueChange = { displayName = it },
+                label = { Text("Display name") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
+                )
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TextField(
+                value = urlTemplate,
+                onValueChange = { urlTemplate = it },
+                label = { Text("URL template") },
+                supportingText = { Text(text = "Include $placeholder") },
+                isError = urlTemplate.isNotBlank() && !urlTemplate.contains(placeholder),
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
+                )
+            )
+
+            if (urlTemplate.isNotBlank() && !urlTemplate.contains(placeholder)) {
+                Text(
+                    text = "Missing $placeholder",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            if (errorMessage != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = errorMessage!!,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(text = "Cancel")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = {
+                        onAdd(displayName, urlTemplate) { error ->
+                            errorMessage = error
+                        }
+                    },
+                    enabled = isValid
+                ) {
+                    Text(text = "Add")
+                }
+            }
         }
     }
 }
+
 
 @Composable
 private fun SettingsSection(
