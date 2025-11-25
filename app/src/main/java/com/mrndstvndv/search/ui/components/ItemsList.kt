@@ -168,6 +168,15 @@ fun ItemsList(
                             )
                             Spacer(Modifier.width(12.dp))
                         }
+                        item.defaultVectorIcon != null -> {
+                            Icon(
+                                imageVector = item.defaultVectorIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = primaryTextColor
+                            )
+                            Spacer(Modifier.width(12.dp))
+                        }
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(

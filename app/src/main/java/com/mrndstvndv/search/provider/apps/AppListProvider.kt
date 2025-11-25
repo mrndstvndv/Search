@@ -3,6 +3,8 @@ package com.mrndstvndv.search.provider.apps
 import android.content.Intent
 import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Android
 import com.mrndstvndv.search.provider.Provider
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
@@ -51,6 +53,7 @@ class AppListProvider(
                 title = entry.label,
                 subtitle = entry.packageName,
                 icon = null,
+                defaultVectorIcon = Icons.Outlined.Android,
                 iconLoader = { loadIcon(entry.packageName) },
                 providerId = id,
                 extras = mapOf(EXTRA_PACKAGE_NAME to entry.packageName),

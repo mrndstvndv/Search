@@ -10,6 +10,7 @@ data class ProviderResult(
     val subtitle: String? = null,
     val icon: Bitmap? = null,
     val vectorIcon: ImageVector? = null,
+    val defaultVectorIcon: ImageVector? = null,
     val iconLoader: (suspend () -> Bitmap?)? = null,
     val providerId: String,
     val score: Float = 0f,
