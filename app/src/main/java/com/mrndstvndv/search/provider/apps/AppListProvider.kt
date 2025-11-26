@@ -37,7 +37,7 @@ class AppListProvider(
 
         val matches: List<ScoredApp> = if (normalized.isBlank()) {
             // No query - return all apps with zero score
-            applications.map { ScoredApp(it, 0, emptyList()) }
+            applications.map { ScoredApp(it, 0, emptyList(), emptyList()) }
         } else {
             // Apply fuzzy matching and scoring
             applications.mapNotNull { app ->
@@ -46,21 +46,29 @@ class AppListProvider(
                     FuzzyMatcher.match(normalized, app.packageName)
                 } else null
 
-                // Determine if label match is the best (with package name penalty applied)
-                val packageScoreWithPenalty = (packageMatch?.score ?: Int.MIN_VALUE) - PACKAGE_NAME_PENALTY
-                val labelIsBest = labelMatch != null && labelMatch.score >= packageScoreWithPenalty
+                // Calculate effective score for package match (with penalty)
+                val packageScoreWithPenalty = packageMatch?.let { it.score - PACKAGE_NAME_PENALTY }
+
+                // Determine which match to use for ranking
+                val labelIsBest = when {
+                    labelMatch == null -> false
+                    packageScoreWithPenalty == null -> true
+                    else -> labelMatch.score >= packageScoreWithPenalty
+                }
 
                 // Calculate effective score and matched indices
                 when {
                     labelIsBest -> ScoredApp(
                         app = app,
                         score = labelMatch!!.score,
-                        matchedIndices = labelMatch.matchedIndices
+                        matchedTitleIndices = labelMatch.matchedIndices,
+                        matchedSubtitleIndices = packageMatch?.matchedIndices ?: emptyList()
                     )
                     packageMatch != null -> ScoredApp(
                         app = app,
-                        score = packageScoreWithPenalty,
-                        matchedIndices = emptyList() // Package name matches don't highlight title
+                        score = packageScoreWithPenalty!!,
+                        matchedTitleIndices = emptyList(),
+                        matchedSubtitleIndices = packageMatch.matchedIndices
                     )
                     else -> null
                 }
@@ -93,7 +101,8 @@ class AppListProvider(
                 onSelect = action,
                 aliasTarget = AppLaunchAliasTarget(entry.packageName, entry.label),
                 keepOverlayUntilExit = true,
-                matchedTitleIndices = scoredApp.matchedIndices
+                matchedTitleIndices = scoredApp.matchedTitleIndices,
+                matchedSubtitleIndices = scoredApp.matchedSubtitleIndices
             )
         }
         return results
@@ -126,7 +135,8 @@ class AppListProvider(
     private data class ScoredApp(
         val app: AppEntry,
         val score: Int,
-        val matchedIndices: List<Int>
+        val matchedTitleIndices: List<Int>,
+        val matchedSubtitleIndices: List<Int>
     )
 
     private companion object {
