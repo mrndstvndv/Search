@@ -131,6 +131,26 @@ class MainActivity : ComponentActivity() {
                     providers.forEach { it.initialize() }
                 }
             }
+
+            // Sync-on-open: trigger incremental file sync if enabled and enough time has passed
+            val fileSearchSettings by settingsRepository.fileSearchSettings.collectAsState()
+            LaunchedEffect(Unit) {
+                withContext(Dispatchers.IO) {
+                    val settings = settingsRepository.fileSearchSettings.value
+                    if (settings.syncOnAppOpen && settings.hasEnabledRoots()) {
+                        val lastSync = settings.lastSyncTimestamp
+                        val minGap = 60_000L // 1 minute
+                        if (System.currentTimeMillis() - lastSync > minGap) {
+                            fileSearchRepository.triggerImmediateSync()
+                        }
+                    }
+                    // Also ensure periodic sync is scheduled based on current settings
+                    if (settings.syncIntervalMinutes > 0 && settings.hasEnabledRoots()) {
+                        fileSearchRepository.schedulePeriodicSync(settings.syncIntervalMinutes)
+                    }
+                }
+            }
+
             val providerResults = remember { mutableStateListOf<ProviderResult>() }
             var shouldShowResults by remember { mutableStateOf(false) }
             var pendingQueryJob by remember { mutableStateOf<Job?>(null) }

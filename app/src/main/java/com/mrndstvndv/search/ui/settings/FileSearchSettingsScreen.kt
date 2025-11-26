@@ -211,6 +211,21 @@ fun FileSearchSettingsScreen(
                         onToggleAscending = { settingsRepository.setFileSearchSortAscending(it) }
                     )
                     SettingsDivider()
+                    SyncIntervalRow(
+                        selectedInterval = fileSearchSettings.syncIntervalMinutes,
+                        onIntervalSelected = {
+                            settingsRepository.setFileSearchSyncInterval(it)
+                            fileSearchRepository.schedulePeriodicSync(it)
+                        }
+                    )
+                    SettingsDivider()
+                    SettingsToggleRow(
+                        title = "Sync on app open",
+                        subtitle = "Check for file changes when Search opens.",
+                        checked = fileSearchSettings.syncOnAppOpen,
+                        onCheckedChange = { settingsRepository.setFileSearchSyncOnAppOpen(it) }
+                    )
+                    SettingsDivider()
                     FileSearchRootsCard(
                         settings = fileSearchSettings,
                         scanMetadata = fileSearchSettings.scanMetadata,
@@ -467,6 +482,55 @@ private fun FileSearchSortMode.userFacingLabel(): String {
     return when (this) {
         FileSearchSortMode.DATE -> "Date modified"
         FileSearchSortMode.NAME -> "Name"
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SyncIntervalRow(
+    selectedInterval: Int,
+    onIntervalSelected: (Int) -> Unit
+) {
+    val options = listOf(
+        0 to "Off",
+        15 to "15m",
+        30 to "30m",
+        60 to "1h",
+        120 to "2h"
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 18.dp)
+    ) {
+        Text(
+            text = "Background sync",
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Text(
+            text = "Automatically check for file changes.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+        ) {
+            options.forEachIndexed { index, (intervalMinutes, label) ->
+                SegmentedButton(
+                    selected = intervalMinutes == selectedInterval,
+                    onClick = {
+                        if (intervalMinutes != selectedInterval) {
+                            onIntervalSelected(intervalMinutes)
+                        }
+                    },
+                    shape = SegmentedButtonDefaults.itemShape(index, options.size)
+                ) {
+                    Text(text = label)
+                }
+            }
+        }
     }
 }
 

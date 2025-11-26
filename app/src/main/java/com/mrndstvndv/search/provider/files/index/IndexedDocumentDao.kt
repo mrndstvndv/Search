@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 
 @Dao
 interface IndexedDocumentDao {
@@ -13,6 +14,15 @@ interface IndexedDocumentDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(documents: List<IndexedDocumentEntity>)
+
+    @Upsert
+    suspend fun upsertAll(entities: List<IndexedDocumentEntity>)
+
+    @Query("SELECT * FROM indexed_documents WHERE rootId = :rootId")
+    suspend fun getAllForRoot(rootId: String): List<IndexedDocumentEntity>
+
+    @Query("DELETE FROM indexed_documents WHERE documentUri IN (:uris)")
+    suspend fun deleteByUris(uris: List<String>)
 
     @Query(
         """

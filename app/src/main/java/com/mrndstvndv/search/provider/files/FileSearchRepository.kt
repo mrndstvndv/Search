@@ -1,17 +1,23 @@
 package com.mrndstvndv.search.provider.files
 
 import android.content.Context
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.mrndstvndv.search.provider.files.index.FileSearchDatabase
 import com.mrndstvndv.search.provider.files.index.IndexedDocumentDao
 import com.mrndstvndv.search.provider.files.index.IndexedDocumentEntity
 import com.mrndstvndv.search.provider.files.indexing.FileSearchIndexWorker
+import com.mrndstvndv.search.provider.files.indexing.IncrementalFileSyncWorker
 import com.mrndstvndv.search.provider.settings.FileSearchRoot
 import com.mrndstvndv.search.provider.settings.FileSearchSortMode
+import java.util.concurrent.TimeUnit
 import kotlin.math.min
 
 class FileSearchRepository private constructor(context: Context) {
@@ -101,8 +107,54 @@ class FileSearchRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Schedules periodic background sync for file changes.
+     * @param intervalMinutes Sync interval in minutes. Pass 0 to disable.
+     */
+    fun schedulePeriodicSync(intervalMinutes: Int) {
+        if (intervalMinutes <= 0) {
+            cancelPeriodicSync()
+            return
+        }
+
+        val request = PeriodicWorkRequestBuilder<IncrementalFileSyncWorker>(
+            intervalMinutes.toLong(), TimeUnit.MINUTES
+        )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+            )
+            .build()
+
+        workManager.enqueueUniquePeriodicWork(
+            PERIODIC_SYNC_WORK_NAME,
+            ExistingPeriodicWorkPolicy.UPDATE,
+            request
+        )
+    }
+
+    /**
+     * Cancels the periodic sync worker.
+     */
+    fun cancelPeriodicSync() {
+        workManager.cancelUniqueWork(PERIODIC_SYNC_WORK_NAME)
+    }
+
+    /**
+     * Triggers an immediate incremental sync.
+     * Uses expedited work when possible for faster execution.
+     */
+    fun triggerImmediateSync() {
+        val request = OneTimeWorkRequestBuilder<IncrementalFileSyncWorker>()
+            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+            .build()
+        workManager.enqueue(request)
+    }
+
     companion object {
         private const val MAX_RESULTS = 40
+        private const val PERIODIC_SYNC_WORK_NAME = "file-search-periodic-sync"
 
         @Volatile
         private var INSTANCE: FileSearchRepository? = null

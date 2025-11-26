@@ -148,6 +148,23 @@ class ProviderSettingsRepository(context: Context) {
         saveFileSearchSettings(current.copy(sortAscending = ascending))
     }
 
+    fun setFileSearchSyncInterval(minutes: Int) {
+        val current = _fileSearchSettings.value
+        if (current.syncIntervalMinutes == minutes) return
+        saveFileSearchSettings(current.copy(syncIntervalMinutes = minutes))
+    }
+
+    fun setFileSearchSyncOnAppOpen(enabled: Boolean) {
+        val current = _fileSearchSettings.value
+        if (current.syncOnAppOpen == enabled) return
+        saveFileSearchSettings(current.copy(syncOnAppOpen = enabled))
+    }
+
+    fun updateLastSyncTimestamp(timestamp: Long) {
+        val current = _fileSearchSettings.value
+        saveFileSearchSettings(current.copy(lastSyncTimestamp = timestamp))
+    }
+
     fun addFileSearchRoot(root: FileSearchRoot) {
         val current = _fileSearchSettings.value
         if (current.roots.any { it.id == root.id }) return
@@ -445,7 +462,10 @@ data class FileSearchSettings(
     val loadThumbnails: Boolean,
     val thumbnailCropMode: FileSearchThumbnailCropMode,
     val sortMode: FileSearchSortMode,
-    val sortAscending: Boolean
+    val sortAscending: Boolean,
+    val syncIntervalMinutes: Int,
+    val syncOnAppOpen: Boolean,
+    val lastSyncTimestamp: Long
 ) {
     fun toJsonString(): String {
         val json = JSONObject()
@@ -462,6 +482,9 @@ data class FileSearchSettings(
         json.put("thumbnailCropMode", thumbnailCropMode.name)
         json.put("sortMode", sortMode.name)
         json.put("sortAscending", sortAscending)
+        json.put("syncIntervalMinutes", syncIntervalMinutes)
+        json.put("syncOnAppOpen", syncOnAppOpen)
+        json.put("lastSyncTimestamp", lastSyncTimestamp)
         return json.toString()
     }
 
@@ -469,8 +492,12 @@ data class FileSearchSettings(
 
     fun enabledRoots(): List<FileSearchRoot> = roots.filter { it.isEnabled }
 
+    fun hasEnabledRoots(): Boolean = includeDownloads || roots.any { it.isEnabled }
+
     companion object {
         const val DOWNLOADS_ROOT_ID = "downloads-root"
+        const val DEFAULT_SYNC_INTERVAL_MINUTES = 30
+        const val DEFAULT_SYNC_ON_APP_OPEN = true
 
         fun empty(): FileSearchSettings = FileSearchSettings(
             roots = emptyList(),
@@ -479,7 +506,10 @@ data class FileSearchSettings(
             loadThumbnails = true,
             thumbnailCropMode = FileSearchThumbnailCropMode.CENTER_CROP,
             sortMode = FileSearchSortMode.NAME,
-            sortAscending = true
+            sortAscending = true,
+            syncIntervalMinutes = DEFAULT_SYNC_INTERVAL_MINUTES,
+            syncOnAppOpen = DEFAULT_SYNC_ON_APP_OPEN,
+            lastSyncTimestamp = 0L
         )
 
         fun fromJson(json: JSONObject?): FileSearchSettings? {
@@ -506,6 +536,9 @@ data class FileSearchSettings(
             val sortRaw = json.optString("sortMode", FileSearchSortMode.NAME.name)
             val sortMode = FileSearchSortMode.fromStorageValue(sortRaw)
             val sortAscending = json.optBoolean("sortAscending", true)
+            val syncIntervalMinutes = json.optInt("syncIntervalMinutes", DEFAULT_SYNC_INTERVAL_MINUTES)
+            val syncOnAppOpen = json.optBoolean("syncOnAppOpen", DEFAULT_SYNC_ON_APP_OPEN)
+            val lastSyncTimestamp = json.optLong("lastSyncTimestamp", 0L)
             return FileSearchSettings(
                 roots = roots,
                 scanMetadata = metadata,
@@ -513,7 +546,10 @@ data class FileSearchSettings(
                 loadThumbnails = loadThumbnails,
                 thumbnailCropMode = cropMode,
                 sortMode = sortMode,
-                sortAscending = sortAscending
+                sortAscending = sortAscending,
+                syncIntervalMinutes = syncIntervalMinutes,
+                syncOnAppOpen = syncOnAppOpen,
+                lastSyncTimestamp = lastSyncTimestamp
             )
         }
     }
