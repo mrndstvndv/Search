@@ -78,10 +78,12 @@ class FileSearchRepository private constructor(context: Context) {
                 ScoredMatch(
                     entity = entity,
                     score = match.score,
+                    // Only highlight displayName if it was the match source
+                    // If only the path matched, don't apply path indices to the filename
                     matchedIndices = if (displayNameMatch != null && displayNameMatch.score >= (relativePathMatch?.score ?: 0)) {
                         displayNameMatch.matchedIndices
                     } else {
-                        relativePathMatch?.matchedIndices ?: emptyList()
+                        emptyList()
                     }
                 )
             }
