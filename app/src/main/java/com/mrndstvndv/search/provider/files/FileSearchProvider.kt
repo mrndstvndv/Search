@@ -75,6 +75,9 @@ class FileSearchProvider(
         val results = mutableListOf<ProviderResult>()
         for (match in matches) {
             val iconDescriptor = resolveIcons(match, thumbnailsEnabled, settings.thumbnailCropMode)
+            // Calculate offset for subtitle indices due to prefix "${rootDisplayName} • "
+            val subtitlePrefix = "${match.rootDisplayName} • "
+            val adjustedSubtitleIndices = match.matchedSubtitleIndices.map { it + subtitlePrefix.length }
             results += ProviderResult(
                 id = "$id:${match.documentUri.hashCode()}",
                 title = match.displayName,
@@ -90,7 +93,7 @@ class FileSearchProvider(
                 ),
                 onSelect = { openDocument(match) },
                 matchedTitleIndices = match.matchedTitleIndices,
-                matchedSubtitleIndices = match.matchedSubtitleIndices
+                matchedSubtitleIndices = adjustedSubtitleIndices
             )
         }
         return results
