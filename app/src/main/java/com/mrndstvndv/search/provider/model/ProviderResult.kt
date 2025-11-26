@@ -17,5 +17,9 @@ data class ProviderResult(
     val extras: Map<String, Any?> = emptyMap(),
     val onSelect: (suspend () -> Unit)? = null,
     val aliasTarget: AliasTarget? = null,
-    val keepOverlayUntilExit: Boolean = false
+    val keepOverlayUntilExit: Boolean = false,
+    /** Indices of matched characters in [title] for fuzzy search highlighting */
+    val matchedTitleIndices: List<Int> = emptyList(),
+    /** Indices of matched characters in [subtitle] for fuzzy search highlighting */
+    val matchedSubtitleIndices: List<Int> = emptyList()
 )

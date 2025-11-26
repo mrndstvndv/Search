@@ -11,12 +11,12 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.mrndstvndv.search.provider.files.index.FileSearchDatabase
-import com.mrndstvndv.search.provider.files.index.IndexedDocumentDao
 import com.mrndstvndv.search.provider.files.index.IndexedDocumentEntity
 import com.mrndstvndv.search.provider.files.indexing.FileSearchIndexWorker
 import com.mrndstvndv.search.provider.files.indexing.IncrementalFileSyncWorker
 import com.mrndstvndv.search.provider.settings.FileSearchRoot
 import com.mrndstvndv.search.provider.settings.FileSearchSortMode
+import com.mrndstvndv.search.util.FuzzyMatcher
 import java.util.concurrent.TimeUnit
 import kotlin.math.min
 
@@ -26,6 +26,15 @@ class FileSearchRepository private constructor(context: Context) {
     private val database: FileSearchDatabase = FileSearchDatabase.get(appContext)
     private val workManager = WorkManager.getInstance(appContext)
 
+    /**
+     * Search for files using FTS + fuzzy scoring for Raycast-style matching.
+     *
+     * Strategy:
+     * 1. For queries >= 2 chars: Use FTS4 prefix matching for fast candidate retrieval
+     * 2. For single char queries: Fall back to LIKE search
+     * 3. Apply fuzzy scoring to candidates for ranking
+     * 4. Return results sorted by fuzzy score, then by user preference
+     */
     suspend fun search(
         queryText: String,
         rootIds: List<String>,
@@ -35,22 +44,69 @@ class FileSearchRepository private constructor(context: Context) {
     ): List<FileSearchMatch> {
         val cleaned = queryText.trim()
         if (cleaned.isEmpty() || rootIds.isEmpty()) return emptyList()
-        val normalized = "%${escapeLikeWildcards(cleaned)}%"
+
         val dao = database.indexedDocumentDao()
-        val matches = dao.search(rootIds, normalized, min(limit, MAX_RESULTS))
-        val mapped = matches.map { entity ->
+        val fetchLimit = limit * 3 // Fetch more candidates for fuzzy re-ranking
+
+        // Choose search strategy based on query length
+        val candidates = if (cleaned.length >= 2) {
+            // Use FTS for 2+ character queries (more effective)
+            val ftsQuery = buildFtsQuery(cleaned)
+            try {
+                dao.searchFts(rootIds, ftsQuery, fetchLimit)
+            } catch (e: Exception) {
+                // Fall back to LIKE if FTS fails (e.g., special characters)
+                val likeQuery = "%${escapeLikeWildcards(cleaned)}%"
+                dao.searchLike(rootIds, likeQuery, fetchLimit)
+            }
+        } else {
+            // Fall back to LIKE for single characters
+            val likeQuery = "%${escapeLikeWildcards(cleaned)}%"
+            dao.searchLike(rootIds, likeQuery, fetchLimit)
+        }
+
+        // Apply fuzzy scoring and filter
+        val scored = candidates.mapNotNull { entity ->
+            val displayNameMatch = FuzzyMatcher.match(cleaned, entity.displayName)
+            val relativePathMatch = FuzzyMatcher.match(cleaned, entity.relativePath)
+
+            // Take the best match between displayName and relativePath
+            val bestMatch = listOfNotNull(displayNameMatch, relativePathMatch)
+                .maxByOrNull { it.score }
+
+            bestMatch?.let { match ->
+                ScoredMatch(
+                    entity = entity,
+                    score = match.score,
+                    matchedIndices = if (displayNameMatch != null && displayNameMatch.score >= (relativePathMatch?.score ?: 0)) {
+                        displayNameMatch.matchedIndices
+                    } else {
+                        relativePathMatch?.matchedIndices ?: emptyList()
+                    }
+                )
+            }
+        }
+
+        // Sort by fuzzy score (descending) first, then take top results
+        val fuzzyRanked = scored
+            .sortedByDescending { it.score }
+            .take(limit)
+
+        val mapped = fuzzyRanked.map { scoredMatch ->
             FileSearchMatch(
-                documentUri = entity.documentUri,
-                displayName = entity.displayName,
-                relativePath = entity.relativePath,
-                rootDisplayName = entity.rootDisplayName,
-                mimeType = entity.mimeType,
-                isDirectory = entity.isDirectory,
-                lastModified = entity.lastModified,
-                sizeBytes = entity.sizeBytes
+                documentUri = scoredMatch.entity.documentUri,
+                displayName = scoredMatch.entity.displayName,
+                relativePath = scoredMatch.entity.relativePath,
+                rootDisplayName = scoredMatch.entity.rootDisplayName,
+                mimeType = scoredMatch.entity.mimeType,
+                isDirectory = scoredMatch.entity.isDirectory,
+                lastModified = scoredMatch.entity.lastModified,
+                sizeBytes = scoredMatch.entity.sizeBytes,
+                matchedIndices = scoredMatch.matchedIndices
             )
         }
-        return sortMatches(mapped, sortMode, sortAscending).take(min(limit, MAX_RESULTS))
+
+        return sortMatches(mapped, sortMode, sortAscending)
     }
 
     suspend fun deleteRootEntries(rootId: String) {
@@ -91,6 +147,37 @@ class FileSearchRepository private constructor(context: Context) {
         val directories = matches.filter { it.isDirectory }.sortedWith(effectiveComparator)
         val files = matches.filterNot { it.isDirectory }.sortedWith(effectiveComparator)
         return directories + files
+    }
+
+    /**
+     * Builds an FTS query with prefix matching for each token.
+     * Example: "my doc" -> "my* doc*"
+     */
+    private fun buildFtsQuery(query: String): String {
+        return query.split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+            .joinToString(" ") { token ->
+                val escaped = escapeFtsSpecialChars(token)
+                "$escaped*"
+            }
+    }
+
+    /**
+     * Escapes FTS special characters by wrapping them in quotes.
+     */
+    private fun escapeFtsSpecialChars(token: String): String {
+        return buildString {
+            for (char in token) {
+                when (char) {
+                    '"', '\'', '(', ')', '-', ':', '*' -> {
+                        append('"')
+                        append(char)
+                        append('"')
+                    }
+                    else -> append(char)
+                }
+            }
+        }
     }
 
     private fun escapeLikeWildcards(input: String): String {
@@ -152,6 +239,15 @@ class FileSearchRepository private constructor(context: Context) {
         workManager.enqueue(request)
     }
 
+    /**
+     * Internal class for holding scored match results during fuzzy ranking.
+     */
+    private data class ScoredMatch(
+        val entity: IndexedDocumentEntity,
+        val score: Int,
+        val matchedIndices: List<Int>
+    )
+
     companion object {
         private const val MAX_RESULTS = 40
         private const val PERIODIC_SYNC_WORK_NAME = "file-search-periodic-sync"
@@ -175,5 +271,6 @@ data class FileSearchMatch(
     val mimeType: String?,
     val isDirectory: Boolean,
     val lastModified: Long,
-    val sizeBytes: Long
+    val sizeBytes: Long,
+    val matchedIndices: List<Int> = emptyList()
 )

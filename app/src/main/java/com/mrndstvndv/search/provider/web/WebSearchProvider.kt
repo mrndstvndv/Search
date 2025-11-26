@@ -9,6 +9,7 @@ import com.mrndstvndv.search.provider.Provider
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
+import com.mrndstvndv.search.util.FuzzyMatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -38,12 +39,20 @@ class WebSearchProvider(
         val triggerToken = query.originalText.trimStart().takeWhile { char ->
             !char.isWhitespace() && char != ':'
         }
+
+        // Use fuzzy matching for trigger tokens
         val triggerMatches = if (triggerToken.isBlank()) {
             emptyList()
         } else {
             sites.filter { it.id != defaultSite.id }
-                .filter { site -> site.displayName.contains(triggerToken, ignoreCase = true) }
+                .mapNotNull { site ->
+                    val match = FuzzyMatcher.match(triggerToken, site.displayName)
+                    match?.let { site to it }
+                }
+                .sortedByDescending { it.second.score }
+                .map { it.first }
         }
+
         val searchTerms = dropTriggerToken(cleaned, triggerToken).ifBlank { cleaned }.trim()
         val visibleSites = if (triggerMatches.isEmpty()) {
             listOf(defaultSite)

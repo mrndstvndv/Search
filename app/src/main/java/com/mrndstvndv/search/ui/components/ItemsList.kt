@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,13 +33,71 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.ui.theme.motionAwareTween
+
+/**
+ * Renders text with highlighted characters at specified indices.
+ * Used for displaying fuzzy search matches with visual feedback.
+ */
+@Composable
+fun HighlightedText(
+    text: String,
+    matchedIndices: List<Int>,
+    color: Color,
+    modifier: Modifier = Modifier,
+    highlightColor: Color = MaterialTheme.colorScheme.primary,
+    style: TextStyle = LocalTextStyle.current,
+    maxLines: Int = 1
+) {
+    if (matchedIndices.isEmpty()) {
+        Text(
+            text = text,
+            color = color,
+            style = style,
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
+            modifier = modifier
+        )
+    } else {
+        val matchedSet = matchedIndices.toSet()
+        Text(
+            text = buildAnnotatedString {
+                text.forEachIndexed { index, char ->
+                    if (index in matchedSet) {
+                        withStyle(
+                            SpanStyle(
+                                color = highlightColor,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        ) {
+                            append(char)
+                        }
+                    } else {
+                        withStyle(SpanStyle(color = color)) {
+                            append(char)
+                        }
+                    }
+                }
+            },
+            style = style,
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
+            modifier = modifier
+        )
+    }
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -188,19 +247,17 @@ fun ItemsList(
                         }
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
+                        HighlightedText(
                             text = item.title,
-                            color = primaryTextColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            matchedIndices = item.matchedTitleIndices,
+                            color = primaryTextColor
                         )
                         item.subtitle?.let { subtitle ->
-                            Text(
+                            HighlightedText(
                                 text = subtitle,
-                                style = MaterialTheme.typography.bodySmall,
+                                matchedIndices = item.matchedSubtitleIndices,
                                 color = subtitleColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                style = MaterialTheme.typography.bodySmall
                             )
                         }
                     }

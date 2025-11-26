@@ -11,6 +11,7 @@ import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
 import com.mrndstvndv.search.util.loadAppIconBitmap
 import com.mrndstvndv.search.alias.AppLaunchAliasTarget
+import com.mrndstvndv.search.util.FuzzyMatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -34,19 +35,39 @@ class AppListProvider(
         val settings = settingsRepository.appSearchSettings.value
         val includePackageName = settings.includePackageName
 
-        val matches = if (normalized.isBlank()) {
-            applications
+        val matches: List<ScoredApp> = if (normalized.isBlank()) {
+            // No query - return all apps with zero score
+            applications.map { ScoredApp(it, 0, emptyList()) }
         } else {
-            applications.filter { 
-                it.label.contains(normalized, ignoreCase = true) ||
-                (includePackageName && it.packageName.contains(normalized, ignoreCase = true))
-            }
+            // Apply fuzzy matching and scoring
+            applications.mapNotNull { app ->
+                val labelMatch = FuzzyMatcher.match(normalized, app.label)
+                val packageMatch = if (includePackageName) {
+                    FuzzyMatcher.match(normalized, app.packageName)
+                } else null
+
+                // Take the best match between label and package name
+                val bestMatch = listOfNotNull(labelMatch, packageMatch).maxByOrNull { it.score }
+
+                bestMatch?.let { match ->
+                    ScoredApp(
+                        app = app,
+                        score = match.score,
+                        matchedIndices = if (labelMatch != null && labelMatch.score >= (packageMatch?.score ?: 0)) {
+                            labelMatch.matchedIndices
+                        } else {
+                            emptyList() // Package name matches don't highlight title
+                        }
+                    )
+                }
+            }.sortedByDescending { it.score }
         }
 
         val limited = matches.take(MAX_RESULTS)
         val results = mutableListOf<ProviderResult>()
 
-        for (entry in limited) {
+        for (scoredApp in limited) {
+            val entry = scoredApp.app
             val action: suspend () -> Unit = {
                 withContext(Dispatchers.Main) {
                     val launchIntent = packageManager.getLaunchIntentForPackage(entry.packageName)
@@ -67,7 +88,8 @@ class AppListProvider(
                 extras = mapOf(EXTRA_PACKAGE_NAME to entry.packageName),
                 onSelect = action,
                 aliasTarget = AppLaunchAliasTarget(entry.packageName, entry.label),
-                keepOverlayUntilExit = true
+                keepOverlayUntilExit = true,
+                matchedTitleIndices = scoredApp.matchedIndices
             )
         }
         return results
@@ -96,6 +118,12 @@ class AppListProvider(
     }
 
     private data class AppEntry(val packageName: String, val label: String)
+
+    private data class ScoredApp(
+        val app: AppEntry,
+        val score: Int,
+        val matchedIndices: List<Int>
+    )
 
     private companion object {
         const val MAX_RESULTS = 40
