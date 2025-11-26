@@ -46,19 +46,23 @@ class AppListProvider(
                     FuzzyMatcher.match(normalized, app.packageName)
                 } else null
 
-                // Take the best match between label and package name
-                val bestMatch = listOfNotNull(labelMatch, packageMatch).maxByOrNull { it.score }
+                // Determine if label match is the best (with package name penalty applied)
+                val packageScoreWithPenalty = (packageMatch?.score ?: Int.MIN_VALUE) - PACKAGE_NAME_PENALTY
+                val labelIsBest = labelMatch != null && labelMatch.score >= packageScoreWithPenalty
 
-                bestMatch?.let { match ->
-                    ScoredApp(
+                // Calculate effective score and matched indices
+                when {
+                    labelIsBest -> ScoredApp(
                         app = app,
-                        score = match.score,
-                        matchedIndices = if (labelMatch != null && labelMatch.score >= (packageMatch?.score ?: 0)) {
-                            labelMatch.matchedIndices
-                        } else {
-                            emptyList() // Package name matches don't highlight title
-                        }
+                        score = labelMatch!!.score,
+                        matchedIndices = labelMatch.matchedIndices
                     )
+                    packageMatch != null -> ScoredApp(
+                        app = app,
+                        score = packageScoreWithPenalty,
+                        matchedIndices = emptyList() // Package name matches don't highlight title
+                    )
+                    else -> null
                 }
             }.sortedByDescending { it.score }
         }
@@ -128,5 +132,7 @@ class AppListProvider(
     private companion object {
         const val MAX_RESULTS = 40
         private const val EXTRA_PACKAGE_NAME = "packageName"
+        /** Penalty applied to package name matches so label matches rank higher */
+        private const val PACKAGE_NAME_PENALTY = 10
     }
 }
