@@ -3,15 +3,26 @@ package com.mrndstvndv.search.provider.settings
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import android.content.SharedPreferences
 import androidx.core.content.edit
 
-class ProviderSettingsRepository(context: Context) {
+/**
+ * Repository for provider settings.
+ * 
+ * @param context Application context
+ * @param scope CoroutineScope for async initialization. Pass null for synchronous initialization
+ *              (useful for Workers that are already on IO thread).
+ */
+class ProviderSettingsRepository(context: Context, scope: CoroutineScope? = null) {
     companion object {
         private const val PREF_NAME = "provider_settings"
         private const val KEY_WEB_SEARCH = "web_search"
@@ -39,38 +50,66 @@ class ProviderSettingsRepository(context: Context) {
         }
     }
 
-    private val _webSearchSettings = MutableStateFlow(loadWebSearchSettings())
+    // Initialize with defaults; actual values loaded async in init block
+    private val _webSearchSettings = MutableStateFlow(WebSearchSettings.default())
     val webSearchSettings: StateFlow<WebSearchSettings> = _webSearchSettings
 
-    private val _appSearchSettings = MutableStateFlow(loadAppSearchSettings())
+    private val _appSearchSettings = MutableStateFlow(AppSearchSettings.default())
     val appSearchSettings: StateFlow<AppSearchSettings> = _appSearchSettings
 
-    private val _translucentResultsEnabled = MutableStateFlow(loadTranslucentResultsEnabled())
+    private val _translucentResultsEnabled = MutableStateFlow(true)
     val translucentResultsEnabled: StateFlow<Boolean> = _translucentResultsEnabled
 
-    private val _backgroundOpacity = MutableStateFlow(loadBackgroundOpacity())
+    private val _backgroundOpacity = MutableStateFlow(DEFAULT_BACKGROUND_OPACITY)
     val backgroundOpacity: StateFlow<Float> = _backgroundOpacity
 
-    private val _backgroundBlurStrength = MutableStateFlow(loadBackgroundBlurStrength())
+    private val _backgroundBlurStrength = MutableStateFlow(DEFAULT_BACKGROUND_BLUR_STRENGTH)
     val backgroundBlurStrength: StateFlow<Float> = _backgroundBlurStrength
 
-    private val _activityIndicatorDelayMs = MutableStateFlow(loadActivityIndicatorDelayMs())
+    private val _activityIndicatorDelayMs = MutableStateFlow(DEFAULT_ACTIVITY_INDICATOR_DELAY_MS)
     val activityIndicatorDelayMs: StateFlow<Int> = _activityIndicatorDelayMs
 
-    private val _motionPreferences = MutableStateFlow(loadMotionPreferences())
+    private val _motionPreferences = MutableStateFlow(MotionPreferences(animationsEnabled = DEFAULT_ANIMATIONS_ENABLED))
     val motionPreferences: StateFlow<MotionPreferences> = _motionPreferences
 
-    private val _textUtilitiesSettings = MutableStateFlow(loadTextUtilitiesSettings())
+    private val _textUtilitiesSettings = MutableStateFlow(TextUtilitiesSettings.default())
     val textUtilitiesSettings: StateFlow<TextUtilitiesSettings> = _textUtilitiesSettings
 
-    private val _fileSearchSettings = MutableStateFlow(loadFileSearchSettings())
+    private val _fileSearchSettings = MutableStateFlow(FileSearchSettings.empty())
     val fileSearchSettings: StateFlow<FileSearchSettings> = _fileSearchSettings
 
-    private val _enabledProviders = MutableStateFlow(loadEnabledProviders())
+    private val _enabledProviders = MutableStateFlow(emptyMap<String, Boolean>())
     val enabledProviders: StateFlow<Map<String, Boolean>> = _enabledProviders
 
     init {
         preferences.registerOnSharedPreferenceChangeListener(preferenceListener)
+        // Load persisted settings off the main thread if scope provided
+        if (scope != null) {
+            scope.launch(Dispatchers.IO) {
+                _webSearchSettings.value = loadWebSearchSettings()
+                _appSearchSettings.value = loadAppSearchSettings()
+                _translucentResultsEnabled.value = loadTranslucentResultsEnabled()
+                _backgroundOpacity.value = loadBackgroundOpacity()
+                _backgroundBlurStrength.value = loadBackgroundBlurStrength()
+                _activityIndicatorDelayMs.value = loadActivityIndicatorDelayMs()
+                _motionPreferences.value = loadMotionPreferences()
+                _textUtilitiesSettings.value = loadTextUtilitiesSettings()
+                _fileSearchSettings.value = loadFileSearchSettings()
+                _enabledProviders.value = loadEnabledProviders()
+            }
+        } else {
+            // Synchronous load (for Workers already on IO thread)
+            _webSearchSettings.value = loadWebSearchSettings()
+            _appSearchSettings.value = loadAppSearchSettings()
+            _translucentResultsEnabled.value = loadTranslucentResultsEnabled()
+            _backgroundOpacity.value = loadBackgroundOpacity()
+            _backgroundBlurStrength.value = loadBackgroundBlurStrength()
+            _activityIndicatorDelayMs.value = loadActivityIndicatorDelayMs()
+            _motionPreferences.value = loadMotionPreferences()
+            _textUtilitiesSettings.value = loadTextUtilitiesSettings()
+            _fileSearchSettings.value = loadFileSearchSettings()
+            _enabledProviders.value = loadEnabledProviders()
+        }
     }
 
     fun saveWebSearchSettings(settings: WebSearchSettings) {

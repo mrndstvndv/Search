@@ -20,6 +20,7 @@ class SettingsProvider(
     override val id: String = "system-settings"
     override val displayName: String = "System Settings"
 
+    @Suppress("DEPRECATION")
     private val settingsActions = listOf(
         "Settings" to Settings.ACTION_SETTINGS,
         "Accessibility" to Settings.ACTION_ACCESSIBILITY_SETTINGS,

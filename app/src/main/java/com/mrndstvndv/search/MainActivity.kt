@@ -94,8 +94,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val textState = remember { mutableStateOf(TextFieldValue("")) }
             val focusRequester = remember { FocusRequester() }
-            val settingsRepository = remember(this@MainActivity) { ProviderSettingsRepository(this@MainActivity) }
-            val aliasRepository = remember(this@MainActivity) { AliasRepository(this@MainActivity) }
+            val coroutineScope = rememberCoroutineScope()
+            val settingsRepository = remember(this@MainActivity) { ProviderSettingsRepository(this@MainActivity, coroutineScope) }
+            val aliasRepository = remember(this@MainActivity) { AliasRepository(this@MainActivity, coroutineScope) }
             val aliasEntries by aliasRepository.aliases.collectAsState()
             val webSearchSettings by settingsRepository.webSearchSettings.collectAsState()
             val translucentResultsEnabled by settingsRepository.translucentResultsEnabled.collectAsState()
@@ -111,7 +112,7 @@ class MainActivity : ComponentActivity() {
 
             val fileSearchRepository = remember(this@MainActivity) { FileSearchRepository.getInstance(this@MainActivity) }
             val fileThumbnailRepository = remember(this@MainActivity) { FileThumbnailRepository.getInstance(this@MainActivity) }
-            val rankingRepository = remember(this@MainActivity) { ProviderRankingRepository.getInstance(this@MainActivity) }
+            val rankingRepository = remember(this@MainActivity) { ProviderRankingRepository.getInstance(this@MainActivity, coroutineScope) }
             val providerOrder by rankingRepository.providerOrder.collectAsState()
             val useFrequencyRanking by rankingRepository.useFrequencyRanking.collectAsState()
             val providers = remember(this@MainActivity) {

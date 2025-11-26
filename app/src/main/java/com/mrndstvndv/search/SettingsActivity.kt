@@ -38,6 +38,7 @@ import com.mrndstvndv.search.ui.settings.ProviderListScreen
 import com.mrndstvndv.search.ui.settings.AppSearchSettingsScreen
 import com.mrndstvndv.search.ui.theme.SearchTheme
 import androidx.lifecycle.lifecycleScope
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,10 +68,11 @@ class SettingsActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            val aliasRepository = remember { AliasRepository(this@SettingsActivity) }
-            val settingsRepository = remember { ProviderSettingsRepository(this@SettingsActivity) }
+            val coroutineScope = rememberCoroutineScope()
+            val aliasRepository = remember { AliasRepository(this@SettingsActivity, coroutineScope) }
+            val settingsRepository = remember { ProviderSettingsRepository(this@SettingsActivity, coroutineScope) }
             val fileSearchRepository = remember { FileSearchRepository.getInstance(this@SettingsActivity) }
-            val rankingRepository = remember { ProviderRankingRepository.getInstance(this@SettingsActivity) }
+            val rankingRepository = remember { ProviderRankingRepository.getInstance(this@SettingsActivity, coroutineScope) }
             val isDefaultAssistant by defaultAssistantState
             val motionPreferences by settingsRepository.motionPreferences.collectAsState()
             val webSearchSettings by settingsRepository.webSearchSettings.collectAsState()

@@ -3,8 +3,11 @@ package com.mrndstvndv.search.provider
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -13,8 +16,12 @@ import org.json.JSONObject
  * Manages provider display order/ranking.
  * Supports both manual ranking and algorithmic frequency-based ranking.
  * Ensures results are always sorted by user-configured provider order or frequency, not by load speed.
+ * 
+ * @param context Application context
+ * @param scope CoroutineScope for async initialization. Pass null for synchronous initialization
+ *              (useful for Workers that are already on IO thread).
  */
-class ProviderRankingRepository(context: Context) {
+class ProviderRankingRepository private constructor(context: Context, scope: CoroutineScope? = null) {
     companion object {
         private const val PREF_NAME = "provider_rankings"
         private const val KEY_PROVIDER_ORDER = "provider_order"
@@ -35,22 +42,39 @@ class ProviderRankingRepository(context: Context) {
         @Volatile
         private var INSTANCE: ProviderRankingRepository? = null
 
-        fun getInstance(context: Context): ProviderRankingRepository {
+        fun getInstance(context: Context, scope: CoroutineScope? = null): ProviderRankingRepository {
             return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: ProviderRankingRepository(context.applicationContext).also { INSTANCE = it }
+                INSTANCE ?: ProviderRankingRepository(context.applicationContext, scope).also { INSTANCE = it }
             }
         }
     }
 
     private val preferences: SharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-    private val _providerOrder = MutableStateFlow(loadProviderOrder())
+    
+    // Initialize with defaults; actual values loaded async in init block
+    private val _providerOrder = MutableStateFlow(DEFAULT_PROVIDER_ORDER)
     val providerOrder: StateFlow<List<String>> = _providerOrder
     
-    private val _useFrequencyRanking = MutableStateFlow(loadUseFrequencyRanking())
+    private val _useFrequencyRanking = MutableStateFlow(true)
     val useFrequencyRanking: StateFlow<Boolean> = _useFrequencyRanking
     
-    private val _resultFrequency = MutableStateFlow(loadResultFrequency())
+    private val _resultFrequency = MutableStateFlow(emptyMap<String, Int>())
     val resultFrequency: StateFlow<Map<String, Int>> = _resultFrequency
+
+    init {
+        if (scope != null) {
+            scope.launch(Dispatchers.IO) {
+                _providerOrder.value = loadProviderOrder()
+                _useFrequencyRanking.value = loadUseFrequencyRanking()
+                _resultFrequency.value = loadResultFrequency()
+            }
+        } else {
+            // Synchronous load (for Workers already on IO thread)
+            _providerOrder.value = loadProviderOrder()
+            _useFrequencyRanking.value = loadUseFrequencyRanking()
+            _resultFrequency.value = loadResultFrequency()
+        }
+    }
 
 
     /**

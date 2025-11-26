@@ -1,21 +1,44 @@
 package com.mrndstvndv.search.alias
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONException
 import androidx.core.content.edit
 
-class AliasRepository(context: Context) {
+/**
+ * Repository for alias settings.
+ * 
+ * @param context Application context
+ * @param scope CoroutineScope for async initialization. Pass null for synchronous initialization
+ *              (useful for Workers that are already on IO thread).
+ */
+class AliasRepository(context: Context, scope: CoroutineScope? = null) {
     companion object {
         private const val PREF_NAME = "alias_settings"
         private const val KEY_ALIASES = "aliases"
     }
 
     private val preferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-    private val _aliases = MutableStateFlow(loadAliases())
+    
+    // Initialize with empty list; actual values loaded async in init block
+    private val _aliases = MutableStateFlow(emptyList<AliasEntry>())
     val aliases: StateFlow<List<AliasEntry>> = _aliases
+
+    init {
+        if (scope != null) {
+            scope.launch(Dispatchers.IO) {
+                _aliases.value = loadAliases()
+            }
+        } else {
+            // Synchronous load (for Workers already on IO thread)
+            _aliases.value = loadAliases()
+        }
+    }
 
     enum class SaveResult {
         SUCCESS,
