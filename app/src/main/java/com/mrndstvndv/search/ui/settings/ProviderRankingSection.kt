@@ -287,6 +287,7 @@ private fun getProviderDisplayName(providerId: String): String {
         "text-utilities" -> "Text Utilities"
         "file-search" -> "Files & Folders"
         "web-search" -> "Web Search"
+        "system-settings" -> "System Settings"
         "debug-long-operation" -> "Debug • Long Operation"
         else -> providerId
     }
