@@ -28,6 +28,7 @@ class ProviderRankingRepository(context: Context) {
             "text-utilities",
             "file-search",
             "web-search",
+            "system-settings",
             "debug-long-operation"
         )
 
