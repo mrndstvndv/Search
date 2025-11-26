@@ -89,7 +89,8 @@ class FileSearchProvider(
                     EXTRA_RELATIVE_PATH to match.relativePath
                 ),
                 onSelect = { openDocument(match) },
-                matchedTitleIndices = match.matchedIndices
+                matchedTitleIndices = match.matchedTitleIndices,
+                matchedSubtitleIndices = match.matchedSubtitleIndices
             )
         }
         return results

@@ -70,7 +70,7 @@ class FileSearchRepository private constructor(context: Context) {
             val displayNameMatch = FuzzyMatcher.match(cleaned, entity.displayName)
             val relativePathMatch = FuzzyMatcher.match(cleaned, entity.relativePath)
 
-            // Take the best match between displayName and relativePath
+            // Take the best match between displayName and relativePath for ranking
             val bestMatch = listOfNotNull(displayNameMatch, relativePathMatch)
                 .maxByOrNull { it.score }
 
@@ -78,13 +78,10 @@ class FileSearchRepository private constructor(context: Context) {
                 ScoredMatch(
                     entity = entity,
                     score = match.score,
-                    // Only highlight displayName if it was the match source
-                    // If only the path matched, don't apply path indices to the filename
-                    matchedIndices = if (displayNameMatch != null && displayNameMatch.score >= (relativePathMatch?.score ?: 0)) {
-                        displayNameMatch.matchedIndices
-                    } else {
-                        emptyList()
-                    }
+                    // Highlight displayName if it matched
+                    matchedTitleIndices = displayNameMatch?.matchedIndices ?: emptyList(),
+                    // Highlight path if it matched
+                    matchedSubtitleIndices = relativePathMatch?.matchedIndices ?: emptyList()
                 )
             }
         }
@@ -104,7 +101,8 @@ class FileSearchRepository private constructor(context: Context) {
                 isDirectory = scoredMatch.entity.isDirectory,
                 lastModified = scoredMatch.entity.lastModified,
                 sizeBytes = scoredMatch.entity.sizeBytes,
-                matchedIndices = scoredMatch.matchedIndices
+                matchedTitleIndices = scoredMatch.matchedTitleIndices,
+                matchedSubtitleIndices = scoredMatch.matchedSubtitleIndices
             )
         }
 
@@ -247,7 +245,8 @@ class FileSearchRepository private constructor(context: Context) {
     private data class ScoredMatch(
         val entity: IndexedDocumentEntity,
         val score: Int,
-        val matchedIndices: List<Int>
+        val matchedTitleIndices: List<Int>,
+        val matchedSubtitleIndices: List<Int>
     )
 
     companion object {
@@ -274,5 +273,6 @@ data class FileSearchMatch(
     val isDirectory: Boolean,
     val lastModified: Long,
     val sizeBytes: Long,
-    val matchedIndices: List<Int> = emptyList()
+    val matchedTitleIndices: List<Int> = emptyList(),
+    val matchedSubtitleIndices: List<Int> = emptyList()
 )
