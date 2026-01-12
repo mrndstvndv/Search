@@ -751,6 +751,11 @@ class MainActivity : ComponentActivity() {
             window.decorView?.let { window.setBackgroundBlurRadius(radius) }
         }
     }
+
+    override fun finish() {
+        super.finish()
+        overridePendingTransition(0, 0)
+    }
 }
 
 private data class PendingAction(
