@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
@@ -413,19 +414,32 @@ class MainActivity : ComponentActivity() {
                                 singleLine = true,
                                 placeholder = { Text("Search") },
                                 trailingIcon = {
-                                    if (settingsIconPosition == SettingsIconPosition.INSIDE) {
-                                        IconButton(
-                                            modifier = Modifier.padding(end = 6.dp),
-                                            onClick = {
-                                                val intent = Intent(this@MainActivity, SettingsActivity::class.java)
-                                                startActivity(intent)
-                                            },
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Settings,
-                                                contentDescription = "Settings",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (textState.value.text.isNotEmpty()) {
+                                            IconButton(
+                                                onClick = { textState.value = TextFieldValue("") }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Clear,
+                                                    contentDescription = "Clear text",
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                        }
+                                        if (settingsIconPosition == SettingsIconPosition.INSIDE) {
+                                            IconButton(
+                                                modifier = Modifier.padding(end = 6.dp),
+                                                onClick = {
+                                                    val intent = Intent(this@MainActivity, SettingsActivity::class.java)
+                                                    startActivity(intent)
+                                                },
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Settings,
+                                                    contentDescription = "Settings",
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
                                         }
                                     }
                                 },
