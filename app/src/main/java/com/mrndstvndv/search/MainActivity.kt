@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
@@ -413,7 +414,18 @@ class MainActivity : ComponentActivity() {
                                 singleLine = true,
                                 placeholder = { Text("Search") },
                                 trailingIcon = {
-                                    if (settingsIconPosition == SettingsIconPosition.INSIDE) {
+                                    if (textState.value.text.isNotEmpty()) {
+                                        IconButton(
+                                            modifier = Modifier.padding(end = 6.dp),
+                                            onClick = { textState.value = TextFieldValue("") },
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Close,
+                                                contentDescription = "Clear query",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    } else if (settingsIconPosition == SettingsIconPosition.INSIDE) {
                                         IconButton(
                                             modifier = Modifier.padding(end = 6.dp),
                                             onClick = {
