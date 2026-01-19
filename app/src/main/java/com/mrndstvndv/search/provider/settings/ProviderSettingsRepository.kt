@@ -44,6 +44,7 @@ class ProviderSettingsRepository(
         private const val KEY_TERMUX = "termux"
         private const val KEY_SHOW_SETTINGS_ICON = "show_settings_icon" // Legacy
         private const val KEY_SETTINGS_ICON_POSITION = "settings_icon_position"
+        private const val KEY_RESULTS_ABOVE_SEARCH_BAR = "results_above_search_bar"
         private const val DEFAULT_BACKGROUND_OPACITY = 0.35f
         private const val DEFAULT_BACKGROUND_BLUR_STRENGTH = 0.5f
         private const val DEFAULT_ACTIVITY_INDICATOR_DELAY_MS = 250
@@ -103,6 +104,9 @@ class ProviderSettingsRepository(
     private val _settingsIconPosition = MutableStateFlow(SettingsIconPosition.BELOW)
     val settingsIconPosition: StateFlow<SettingsIconPosition> = _settingsIconPosition
 
+    private val _resultsAboveSearchBar = MutableStateFlow(false)
+    val resultsAboveSearchBar: StateFlow<Boolean> = _resultsAboveSearchBar
+
     init {
         preferences.registerOnSharedPreferenceChangeListener(preferenceListener)
         // Load persisted settings off the main thread if scope provided
@@ -122,6 +126,7 @@ class ProviderSettingsRepository(
                 _contactsSettings.value = loadContactsSettings()
                 _termuxSettings.value = loadTermuxSettings()
                 _settingsIconPosition.value = loadSettingsIconPosition()
+                _resultsAboveSearchBar.value = loadResultsAboveSearchBar()
             }
         } else {
             // Synchronous load (for Workers already on IO thread)
@@ -139,6 +144,7 @@ class ProviderSettingsRepository(
             _contactsSettings.value = loadContactsSettings()
             _termuxSettings.value = loadTermuxSettings()
             _settingsIconPosition.value = loadSettingsIconPosition()
+            _resultsAboveSearchBar.value = loadResultsAboveSearchBar()
         }
     }
 
@@ -543,6 +549,13 @@ class ProviderSettingsRepository(
         }
 
         return SettingsIconPosition.BELOW
+    }
+
+    private fun loadResultsAboveSearchBar(): Boolean = preferences.getBoolean(KEY_RESULTS_ABOVE_SEARCH_BAR, false)
+
+    fun setResultsAboveSearchBar(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_RESULTS_ABOVE_SEARCH_BAR, enabled) }
+        _resultsAboveSearchBar.value = enabled
     }
 }
 

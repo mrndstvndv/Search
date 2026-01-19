@@ -128,6 +128,7 @@ class MainActivity : ComponentActivity() {
             val motionPreferences by settingsRepository.motionPreferences.collectAsState()
             val settingsIconPosition by settingsRepository.settingsIconPosition.collectAsState()
             val enabledProviders by settingsRepository.enabledProviders.collectAsState()
+            val resultsAboveSearchBar by settingsRepository.resultsAboveSearchBar.collectAsState()
 
             LaunchedEffect(backgroundBlurStrength) {
                 applyWindowBlur(backgroundBlurStrength)
@@ -376,7 +377,12 @@ class MainActivity : ComponentActivity() {
             SearchTheme(motionPreferences = motionPreferences) {
                 val hasVisibleResults = shouldShowResults && providerResults.isNotEmpty()
                 val spacerWeight by rememberMotionAwareFloat(
-                    targetValue = if (hasVisibleResults) 0.01f else 1f,
+                    targetValue =
+                        if (hasVisibleResults && !resultsAboveSearchBar) {
+                            0.01f
+                        } else {
+                            1f
+                        },
                     durationMillis = 300,
                     label = "resultsSpacer",
                 )
@@ -387,6 +393,7 @@ class MainActivity : ComponentActivity() {
                         stop = MaterialTheme.colorScheme.primaryContainer,
                         fraction = 0.65f,
                     )
+
                 val backgroundColor = tintedPrimaryBackground.copy(alpha = backgroundOpacity.coerceIn(0f, 1f))
                 Box(
                     Modifier
@@ -407,7 +414,56 @@ class MainActivity : ComponentActivity() {
                     ) {
                         Spacer(Modifier.weight(spacerWeight))
 
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                        if (resultsAboveSearchBar) {
+                            val listEnterDuration = 250
+                            val listExitDuration = 200
+                            motionAwareVisibility(
+                                visible = hasVisibleResults,
+                                modifier =
+                                    Modifier
+                                        .weight(if (hasVisibleResults) 1f else 0.01f)
+                                        .padding(bottom = 8.dp),
+                                enter =
+                                    fadeIn(animationSpec = tween(durationMillis = listEnterDuration)) +
+                                        expandVertically(
+                                            expandFrom = Alignment.Top,
+                                            animationSpec = tween(durationMillis = listEnterDuration),
+                                        ),
+                                exit =
+                                    fadeOut(animationSpec = tween(durationMillis = listExitDuration)) +
+                                        shrinkVertically(
+                                            shrinkTowards = Alignment.Top,
+                                            animationSpec = tween(durationMillis = listExitDuration),
+                                        ),
+                            ) {
+                                ItemsList(
+                                    modifier = Modifier.fillMaxSize(),
+                                    results = providerResults,
+                                    onItemClick = { result -> handleResultSelection(result) },
+                                    onItemLongPress = onItemLongPress@{ result ->
+                                        val target = result.aliasTarget ?: return@onItemLongPress
+                                        val suggestion = sanitizeAliasSuggestion(result.title)
+                                        aliasDialogValue = suggestion
+                                        aliasDialogError = null
+                                        aliasDialogCandidate =
+                                            AliasCreationCandidate(
+                                                target = target,
+                                                suggestion = suggestion,
+                                                description = result.subtitle ?: result.title,
+                                            )
+                                    },
+                                    translucentItems = translucentResultsEnabled,
+                                    reverseLayout = true,
+                                )
+                            }
+                        }
+
+                        Column(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .then(if (resultsAboveSearchBar) Modifier.imePadding() else Modifier),
+                        ) {
                             SearchField(
                                 modifier =
                                     Modifier
@@ -514,50 +570,50 @@ class MainActivity : ComponentActivity() {
                             Spacer(modifier = Modifier.height(6.dp))
                         }
 
-                        if (!hasVisibleResults) {
-                            Spacer(Modifier.weight(spacerWeight))
-                        }
+                        if (!resultsAboveSearchBar) {
+                            val listEnterDuration = 250
+                            val listExitDuration = 200
+                            motionAwareVisibility(
+                                visible = hasVisibleResults,
+                                modifier =
+                                    Modifier
+                                        .weight(if (hasVisibleResults) 1f else 0.01f)
+                                        .imePadding()
+                                        .padding(bottom = 8.dp),
+                                enter =
+                                    fadeIn(animationSpec = tween(durationMillis = listEnterDuration)) +
+                                        expandVertically(
+                                            expandFrom = Alignment.Top,
+                                            animationSpec = tween(durationMillis = listEnterDuration),
+                                        ),
+                                exit =
+                                    fadeOut(animationSpec = tween(durationMillis = listExitDuration)) +
+                                        shrinkVertically(
+                                            shrinkTowards = Alignment.Top,
+                                            animationSpec = tween(durationMillis = listExitDuration),
+                                        ),
+                            ) {
+                                ItemsList(
+                                    modifier = Modifier.fillMaxSize(),
+                                    results = providerResults,
+                                    onItemClick = { result -> handleResultSelection(result) },
+                                    onItemLongPress = onItemLongPress@{ result ->
+                                        val target = result.aliasTarget ?: return@onItemLongPress
+                                        val suggestion = sanitizeAliasSuggestion(result.title)
+                                        aliasDialogValue = suggestion
+                                        aliasDialogError = null
+                                        aliasDialogCandidate =
+                                            AliasCreationCandidate(
+                                                target = target,
+                                                suggestion = suggestion,
+                                                description = result.subtitle ?: result.title,
+                                            )
+                                    },
+                                    translucentItems = translucentResultsEnabled,
+                                )
+                            }
 
-                        val listEnterDuration = 250
-                        val listExitDuration = 200
-                        motionAwareVisibility(
-                            visible = hasVisibleResults,
-                            modifier =
-                                Modifier
-                                    .weight(if (hasVisibleResults) 1f else 0.01f)
-                                    .imePadding()
-                                    .padding(bottom = 8.dp),
-                            enter =
-                                fadeIn(animationSpec = tween(durationMillis = listEnterDuration)) +
-                                    expandVertically(
-                                        expandFrom = Alignment.Top,
-                                        animationSpec = tween(durationMillis = listEnterDuration),
-                                    ),
-                            exit =
-                                fadeOut(animationSpec = tween(durationMillis = listExitDuration)) +
-                                    shrinkVertically(
-                                        shrinkTowards = Alignment.Top,
-                                        animationSpec = tween(durationMillis = listExitDuration),
-                                    ),
-                        ) {
-                            ItemsList(
-                                modifier = Modifier.fillMaxSize(),
-                                results = providerResults,
-                                onItemClick = { result -> handleResultSelection(result) },
-                                onItemLongPress = onItemLongPress@{ result ->
-                                    val target = result.aliasTarget ?: return@onItemLongPress
-                                    val suggestion = sanitizeAliasSuggestion(result.title)
-                                    aliasDialogValue = suggestion
-                                    aliasDialogError = null
-                                    aliasDialogCandidate =
-                                        AliasCreationCandidate(
-                                            target = target,
-                                            suggestion = suggestion,
-                                            description = result.subtitle ?: result.title,
-                                        )
-                                },
-                                translucentItems = translucentResultsEnabled,
-                            )
+                            Spacer(Modifier.weight(spacerWeight))
                         }
                     }
 

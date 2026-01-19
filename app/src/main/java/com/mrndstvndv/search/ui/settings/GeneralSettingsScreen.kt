@@ -368,6 +368,7 @@ fun AppearanceSettingsScreen(
     val backgroundOpacity by settingsRepository.backgroundOpacity.collectAsState()
     val backgroundBlurStrength by settingsRepository.backgroundBlurStrength.collectAsState()
     val settingsIconPosition by settingsRepository.settingsIconPosition.collectAsState()
+    val resultsAboveSearchBar by settingsRepository.resultsAboveSearchBar.collectAsState()
 
     SettingsScaffold(
         title = "Appearance",
@@ -398,6 +399,13 @@ fun AppearanceSettingsScreen(
                     value = backgroundBlurStrength,
                     onValueChange = { settingsRepository.setBackgroundBlurStrength(it) },
                     steps = 19,
+                )
+                SettingsDivider()
+                SettingsSwitch(
+                    title = "Results above search bar",
+                    subtitle = "Show results above the search field, with newest at top.",
+                    checked = resultsAboveSearchBar,
+                    onCheckedChange = { settingsRepository.setResultsAboveSearchBar(it) },
                 )
                 SettingsDivider()
 
@@ -440,8 +448,7 @@ fun AppearanceSettingsScreen(
                         }
                     }
                 }
-
-                }
+            }
         }
     }
 }

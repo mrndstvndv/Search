@@ -55,6 +55,7 @@ class BackupRestoreManager(
         private const val KEY_TRANSLUCENT_RESULTS = "translucentResults"
         private const val KEY_BACKGROUND_OPACITY = "backgroundOpacity"
         private const val KEY_BACKGROUND_BLUR_STRENGTH = "backgroundBlurStrength"
+        private const val KEY_RESULTS_ABOVE_SEARCH_BAR = "resultsAboveSearchBar"
 
         // Behavior Keys
         private const val KEY_ANIMATIONS_ENABLED = "animationsEnabled"
@@ -149,6 +150,7 @@ class BackupRestoreManager(
             appearance.put(KEY_TRANSLUCENT_RESULTS, settingsRepository.translucentResultsEnabled.value)
             appearance.put(KEY_BACKGROUND_OPACITY, settingsRepository.backgroundOpacity.value.toDouble())
             appearance.put(KEY_BACKGROUND_BLUR_STRENGTH, settingsRepository.backgroundBlurStrength.value.toDouble())
+            appearance.put(KEY_RESULTS_ABOVE_SEARCH_BAR, settingsRepository.resultsAboveSearchBar.value)
             providerSettings.put(KEY_APPEARANCE, appearance)
 
             // Behavior settings
@@ -426,6 +428,9 @@ class BackupRestoreManager(
                         )
                         settingsRepository.setBackgroundBlurStrength(
                             appearanceJson.optDouble(KEY_BACKGROUND_BLUR_STRENGTH, 0.5).toFloat(),
+                        )
+                        settingsRepository.setResultsAboveSearchBar(
+                            appearanceJson.optBoolean(KEY_RESULTS_ABOVE_SEARCH_BAR, false),
                         )
                         settingsRestored++
                     } catch (e: Exception) {

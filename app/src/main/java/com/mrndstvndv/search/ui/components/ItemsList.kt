@@ -59,7 +59,7 @@ fun HighlightedText(
     modifier: Modifier = Modifier,
     highlightColor: Color = MaterialTheme.colorScheme.primary,
     style: TextStyle = LocalTextStyle.current,
-    maxLines: Int = 1
+    maxLines: Int = 1,
 ) {
     if (matchedIndices.isEmpty()) {
         Text(
@@ -68,33 +68,34 @@ fun HighlightedText(
             style = style,
             maxLines = maxLines,
             overflow = TextOverflow.Ellipsis,
-            modifier = modifier
+            modifier = modifier,
         )
     } else {
         val matchedSet = matchedIndices.toSet()
         Text(
-            text = buildAnnotatedString {
-                text.forEachIndexed { index, char ->
-                    if (index in matchedSet) {
-                        withStyle(
-                            SpanStyle(
-                                color = highlightColor,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        ) {
-                            append(char)
-                        }
-                    } else {
-                        withStyle(SpanStyle(color = color)) {
-                            append(char)
+            text =
+                buildAnnotatedString {
+                    text.forEachIndexed { index, char ->
+                        if (index in matchedSet) {
+                            withStyle(
+                                SpanStyle(
+                                    color = highlightColor,
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                            ) {
+                                append(char)
+                            }
+                        } else {
+                            withStyle(SpanStyle(color = color)) {
+                                append(char)
+                            }
                         }
                     }
-                }
-            },
+                },
             style = style,
             maxLines = maxLines,
             overflow = TextOverflow.Ellipsis,
-            modifier = modifier
+            modifier = modifier,
         )
     }
 }
@@ -107,11 +108,12 @@ fun ItemsList(
     onItemClick: (ProviderResult) -> Unit,
     onItemLongPress: ((ProviderResult) -> Unit)? = null,
     translucentItems: Boolean = false,
+    reverseLayout: Boolean = false,
 ) {
     if (results.isEmpty()) return
 
     val listState = rememberLazyListState()
-    
+
     LaunchedEffect(results.firstOrNull()?.id) {
         listState.scrollToItem(0)
     }
@@ -120,32 +122,39 @@ fun ItemsList(
         state = listState,
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(2.dp),
+        reverseLayout = reverseLayout,
     ) {
         itemsIndexed(
             items = results,
-            key = { _, item -> item.id }
+            key = { _, item -> item.id },
         ) { index, item ->
             val singleItem = results.size == 1
-            val targetTopStart = when {
-                singleItem -> 20.dp
-                index == 0 -> 20.dp
-                else -> 5.dp
-            }
-            val targetTopEnd = when {
-                singleItem -> 20.dp
-                index == 0 -> 20.dp
-                else -> 5.dp
-            }
-            val targetBottomStart = when {
-                singleItem -> 20.dp
-                index == results.lastIndex -> 20.dp
-                else -> 5.dp
-            }
-            val targetBottomEnd = when {
-                singleItem -> 20.dp
-                index == results.lastIndex -> 20.dp
-                else -> 5.dp
-            }
+            val isTopItem = if (reverseLayout) index == results.lastIndex else index == 0
+            val isBottomItem = if (reverseLayout) index == 0 else index == results.lastIndex
+            val targetTopStart =
+                when {
+                    singleItem -> 20.dp
+                    isTopItem -> 20.dp
+                    else -> 5.dp
+                }
+            val targetTopEnd =
+                when {
+                    singleItem -> 20.dp
+                    isTopItem -> 20.dp
+                    else -> 5.dp
+                }
+            val targetBottomStart =
+                when {
+                    singleItem -> 20.dp
+                    isBottomItem -> 20.dp
+                    else -> 5.dp
+                }
+            val targetBottomEnd =
+                when {
+                    singleItem -> 20.dp
+                    isBottomItem -> 20.dp
+                    else -> 5.dp
+                }
 
             val cornerAnimationSpec = motionAwareTween<Dp>(durationMillis = 250)
             val animatedTopStart by animateDpAsState(targetTopStart, animationSpec = cornerAnimationSpec, label = "shapeTopStart")
@@ -153,35 +162,39 @@ fun ItemsList(
             val animatedBottomStart by animateDpAsState(targetBottomStart, animationSpec = cornerAnimationSpec, label = "shapeBottomStart")
             val animatedBottomEnd by animateDpAsState(targetBottomEnd, animationSpec = cornerAnimationSpec, label = "shapeBottomEnd")
 
-            val shape = RoundedCornerShape(
-                topStart = animatedTopStart,
-                topEnd = animatedTopEnd,
-                bottomEnd = animatedBottomEnd,
-                bottomStart = animatedBottomStart,
-            )
+            val shape =
+                RoundedCornerShape(
+                    topStart = animatedTopStart,
+                    topEnd = animatedTopEnd,
+                    bottomEnd = animatedBottomEnd,
+                    bottomStart = animatedBottomStart,
+                )
 
-            val containerColor = if (translucentItems) {
-                MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
+            val containerColor =
+                if (translucentItems) {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                } else {
+                    MaterialTheme.colorScheme.surface
+                }
             val isDarkTheme = isSystemInDarkTheme()
-            val primaryTextColor = if (translucentItems) {
-                MaterialTheme.colorScheme.onSurface
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            }
-            val subtitleColor = if (translucentItems) {
-                val alpha = if (isDarkTheme) 0.85f else 0.75f
-                primaryTextColor.copy(alpha = alpha)
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            }
+            val primaryTextColor =
+                if (translucentItems) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                }
+            val subtitleColor =
+                if (translucentItems) {
+                    val alpha = if (isDarkTheme) 0.85f else 0.75f
+                    primaryTextColor.copy(alpha = alpha)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
 
             val iconBitmap by produceState<Bitmap?>(
                 initialValue = item.icon,
                 key1 = item.id,
-                key2 = item.iconLoader
+                key2 = item.iconLoader,
             ) {
                 if (value != null) return@produceState
                 val loader = item.iconLoader ?: return@produceState
@@ -191,23 +204,24 @@ fun ItemsList(
             Surface(
                 shape = shape,
                 tonalElevation = if (translucentItems) 0.dp else 1.dp,
-                color = containerColor
+                color = containerColor,
             ) {
                 val interactionSource = remember { MutableInteractionSource() }
                 val rippleIndication = LocalIndication.current
-                val clickModifier = if (onItemLongPress != null) {
-                    Modifier.combinedClickable(
-                        interactionSource = interactionSource,
-                        indication = rippleIndication,
-                        onClick = { onItemClick(item) },
-                        onLongClick = { onItemLongPress(item) }
-                    )
-                } else {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = rippleIndication
-                    ) { onItemClick(item) }
-                }
+                val clickModifier =
+                    if (onItemLongPress != null) {
+                        Modifier.combinedClickable(
+                            interactionSource = interactionSource,
+                            indication = rippleIndication,
+                            onClick = { onItemClick(item) },
+                            onLongClick = { onItemLongPress(item) },
+                        )
+                    } else {
+                        Modifier.clickable(
+                            interactionSource = interactionSource,
+                            indication = rippleIndication,
+                        ) { onItemClick(item) }
+                    }
 
                 Row(
                     Modifier
@@ -215,7 +229,7 @@ fun ItemsList(
                         .height(70.dp)
                         .then(clickModifier)
                         .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     when {
                         iconBitmap != null -> {
@@ -223,25 +237,27 @@ fun ItemsList(
                             androidx.compose.foundation.Image(
                                 painter = painter,
                                 contentDescription = null,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(28.dp),
                             )
                             Spacer(Modifier.width(12.dp))
                         }
+
                         item.vectorIcon != null -> {
                             Icon(
                                 imageVector = item.vectorIcon,
                                 contentDescription = null,
                                 modifier = Modifier.size(28.dp),
-                                tint = primaryTextColor
+                                tint = primaryTextColor,
                             )
                             Spacer(Modifier.width(12.dp))
                         }
+
                         item.defaultVectorIcon != null -> {
                             Icon(
                                 imageVector = item.defaultVectorIcon,
                                 contentDescription = null,
                                 modifier = Modifier.size(28.dp),
-                                tint = primaryTextColor
+                                tint = primaryTextColor,
                             )
                             Spacer(Modifier.width(12.dp))
                         }
@@ -250,14 +266,14 @@ fun ItemsList(
                         HighlightedText(
                             text = item.title,
                             matchedIndices = item.matchedTitleIndices,
-                            color = primaryTextColor
+                            color = primaryTextColor,
                         )
                         item.subtitle?.let { subtitle ->
                             HighlightedText(
                                 text = subtitle,
                                 matchedIndices = item.matchedSubtitleIndices,
                                 color = subtitleColor,
-                                style = MaterialTheme.typography.bodySmall
+                                style = MaterialTheme.typography.bodySmall,
                             )
                         }
                     }
