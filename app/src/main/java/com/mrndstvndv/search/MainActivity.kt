@@ -454,7 +454,7 @@ class MainActivity : ComponentActivity() {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .then(if (resultsAboveSearchBar) Modifier.imePadding() else Modifier),
+                                    .imePadding(),
                         ) {
                             SearchField(
                                 modifier =
@@ -577,7 +577,6 @@ class MainActivity : ComponentActivity() {
                                 modifier =
                                     Modifier
                                         .weight(resultsWeight)
-                                        .imePadding()
                                         .padding(bottom = 8.dp),
                                 enter =
                                     fadeIn(animationSpec = tween(durationMillis = listEnterDuration)) +
