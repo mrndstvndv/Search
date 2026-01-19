@@ -121,7 +121,12 @@ fun ItemsList(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement =
+            if (reverseLayout) {
+                Arrangement.spacedBy(2.dp, Alignment.Bottom)
+            } else {
+                Arrangement.spacedBy(2.dp)
+            },
         reverseLayout = reverseLayout,
     ) {
         itemsIndexed(
