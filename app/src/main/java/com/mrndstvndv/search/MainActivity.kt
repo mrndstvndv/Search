@@ -423,18 +423,10 @@ class MainActivity : ComponentActivity() {
                                     Modifier
                                         .weight(resultsWeight)
                                         .padding(bottom = 8.dp),
-                                enter =
-                                    fadeIn(animationSpec = tween(durationMillis = listEnterDuration)) +
-                                        expandVertically(
-                                            expandFrom = Alignment.Bottom,
-                                            animationSpec = tween(durationMillis = listEnterDuration),
-                                        ),
-                                exit =
-                                    fadeOut(animationSpec = tween(durationMillis = listExitDuration)) +
-                                        shrinkVertically(
-                                            shrinkTowards = Alignment.Bottom,
-                                            animationSpec = tween(durationMillis = listExitDuration),
-                                        ),
+                                // Only use fade animations - the weight animation handles the size change
+                                // to avoid conflicts between shrinkVertically and the weight system
+                                enter = fadeIn(animationSpec = tween(durationMillis = listEnterDuration)),
+                                exit = fadeOut(animationSpec = tween(durationMillis = listExitDuration)),
                             ) {
                                 ItemsList(
                                     modifier = Modifier.fillMaxSize(),
@@ -570,8 +562,10 @@ class MainActivity : ComponentActivity() {
                             Spacer(modifier = Modifier.height(6.dp))
                         }
 
-                        // Center search bar when in "above" mode with no visible results
-                        if (resultsAboveSearchBar && !hasVisibleResults) {
+                        // Bottom spacer for centering - always present in "above" mode
+                        // with animated weight to avoid composition changes that cause position jumps.
+                        // Weight: 0.01f with results (minimal) → 1f without results (centers)
+                        if (resultsAboveSearchBar) {
                             Spacer(Modifier.weight(spacerWeight))
                         }
 
