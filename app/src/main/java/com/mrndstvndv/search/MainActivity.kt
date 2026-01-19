@@ -381,6 +381,11 @@ class MainActivity : ComponentActivity() {
                     durationMillis = 300,
                     label = "resultsSpacer",
                 )
+                val resultsWeight by rememberMotionAwareFloat(
+                    targetValue = if (hasVisibleResults) 1f else 0.01f,
+                    durationMillis = 300,
+                    label = "resultsWeight",
+                )
 
                 val tintedPrimaryBackground =
                     lerp(
@@ -416,7 +421,7 @@ class MainActivity : ComponentActivity() {
                                 visible = hasVisibleResults,
                                 modifier =
                                     Modifier
-                                        .weight(if (hasVisibleResults) 1f else 0.01f)
+                                        .weight(resultsWeight)
                                         .padding(bottom = 8.dp),
                                 enter =
                                     fadeIn(animationSpec = tween(durationMillis = listEnterDuration)) +
@@ -572,7 +577,7 @@ class MainActivity : ComponentActivity() {
                                 visible = hasVisibleResults,
                                 modifier =
                                     Modifier
-                                        .weight(if (hasVisibleResults) 1f else 0.01f)
+                                        .weight(resultsWeight)
                                         .imePadding()
                                         .padding(bottom = 8.dp),
                                 enter =
