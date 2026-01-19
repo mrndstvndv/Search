@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -376,11 +377,34 @@ class MainActivity : ComponentActivity() {
 
             SearchTheme(motionPreferences = motionPreferences) {
                 val hasVisibleResults = shouldShowResults && providerResults.isNotEmpty()
+
+                // Detect keyboard visibility
+                val density = LocalDensity.current
+                val imeBottom = WindowInsets.ime.getBottom(density)
+                val isKeyboardVisible = imeBottom > 0
+
                 val spacerWeight by rememberMotionAwareFloat(
                     targetValue = if (hasVisibleResults) 0.01f else 1f,
                     durationMillis = 300,
                     label = "resultsSpacer",
                 )
+
+                // Bottom spacer collapses when keyboard is visible OR results are showing
+                val bottomSpacerWeight by rememberMotionAwareFloat(
+                    targetValue =
+                        when {
+                            hasVisibleResults -> 0.01f
+
+                            // Results showing - minimal
+                            isKeyboardVisible -> 0.01f
+
+                            // Keyboard up - push to bottom
+                            else -> 1f // Centered
+                        },
+                    durationMillis = 300,
+                    label = "bottomSpacer",
+                )
+
                 val resultsWeight by rememberMotionAwareFloat(
                     targetValue = if (hasVisibleResults) 1f else 0.01f,
                     durationMillis = 300,
@@ -564,9 +588,9 @@ class MainActivity : ComponentActivity() {
 
                         // Bottom spacer for centering - always present in "above" mode
                         // with animated weight to avoid composition changes that cause position jumps.
-                        // Weight: 0.01f with results (minimal) → 1f without results (centers)
+                        // Weight: 0.01f with results/keyboard (minimal) → 1f without (centers)
                         if (resultsAboveSearchBar) {
-                            Spacer(Modifier.weight(spacerWeight))
+                            Spacer(Modifier.weight(bottomSpacerWeight))
                         }
 
                         if (!resultsAboveSearchBar) {
@@ -611,7 +635,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
 
-                            Spacer(Modifier.weight(spacerWeight))
+                            Spacer(Modifier.weight(bottomSpacerWeight))
                         }
                     }
 
