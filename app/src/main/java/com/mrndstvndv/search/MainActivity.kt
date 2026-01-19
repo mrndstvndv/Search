@@ -377,12 +377,7 @@ class MainActivity : ComponentActivity() {
             SearchTheme(motionPreferences = motionPreferences) {
                 val hasVisibleResults = shouldShowResults && providerResults.isNotEmpty()
                 val spacerWeight by rememberMotionAwareFloat(
-                    targetValue =
-                        if (hasVisibleResults && !resultsAboveSearchBar) {
-                            0.01f
-                        } else {
-                            1f
-                        },
+                    targetValue = if (hasVisibleResults) 0.01f else 1f,
                     durationMillis = 300,
                     label = "resultsSpacer",
                 )
@@ -426,13 +421,13 @@ class MainActivity : ComponentActivity() {
                                 enter =
                                     fadeIn(animationSpec = tween(durationMillis = listEnterDuration)) +
                                         expandVertically(
-                                            expandFrom = Alignment.Top,
+                                            expandFrom = Alignment.Bottom,
                                             animationSpec = tween(durationMillis = listEnterDuration),
                                         ),
                                 exit =
                                     fadeOut(animationSpec = tween(durationMillis = listExitDuration)) +
                                         shrinkVertically(
-                                            shrinkTowards = Alignment.Top,
+                                            shrinkTowards = Alignment.Bottom,
                                             animationSpec = tween(durationMillis = listExitDuration),
                                         ),
                             ) {
