@@ -570,6 +570,11 @@ class MainActivity : ComponentActivity() {
                             Spacer(modifier = Modifier.height(6.dp))
                         }
 
+                        // Center search bar when in "above" mode with no visible results
+                        if (resultsAboveSearchBar && !hasVisibleResults) {
+                            Spacer(Modifier.weight(spacerWeight))
+                        }
+
                         if (!resultsAboveSearchBar) {
                             val listEnterDuration = 250
                             val listExitDuration = 200
