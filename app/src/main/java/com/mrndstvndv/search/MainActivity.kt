@@ -462,7 +462,7 @@ class MainActivity : ComponentActivity() {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .then(if (resultsAboveSearchBar) Modifier.imePadding() else Modifier),
+                                    .then(if (resultsAboveSearchBar && hasVisibleResults) Modifier.imePadding() else Modifier),
                         ) {
                             SearchField(
                                 modifier =
@@ -572,7 +572,7 @@ class MainActivity : ComponentActivity() {
 
                         // Center search bar when in "above" mode with no visible results
                         if (resultsAboveSearchBar && !hasVisibleResults) {
-                            Spacer(Modifier.weight(spacerWeight))
+                            Spacer(Modifier.weight(spacerWeight).imePadding())
                         }
 
                         if (!resultsAboveSearchBar) {
