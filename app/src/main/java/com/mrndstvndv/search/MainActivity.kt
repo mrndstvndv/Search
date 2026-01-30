@@ -126,7 +126,7 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            BackHandler {
+            BackHandler(enabled = true) {
                 finish()
             }
             val textState = remember { mutableStateOf(TextFieldValue("")) }
