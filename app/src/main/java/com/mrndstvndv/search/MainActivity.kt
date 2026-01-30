@@ -74,6 +74,7 @@ import com.mrndstvndv.search.provider.model.ProviderResult
 import com.mrndstvndv.search.provider.model.Query
 import com.mrndstvndv.search.provider.settings.AppListType
 import com.mrndstvndv.search.provider.settings.ProviderSettingsRepository
+import com.mrndstvndv.search.provider.settings.SearchBarPosition
 import com.mrndstvndv.search.provider.settings.SettingsIconPosition
 import com.mrndstvndv.search.provider.settings.WebSearchSettings
 import com.mrndstvndv.search.provider.system.DeveloperSettingsManager
@@ -127,6 +128,7 @@ class MainActivity : ComponentActivity() {
             val activityIndicatorDelayMs by settingsRepository.activityIndicatorDelayMs.collectAsState()
             val motionPreferences by settingsRepository.motionPreferences.collectAsState()
             val settingsIconPosition by settingsRepository.settingsIconPosition.collectAsState()
+            val searchBarPosition by settingsRepository.searchBarPosition.collectAsState()
             val enabledProviders by settingsRepository.enabledProviders.collectAsState()
 
             LaunchedEffect(backgroundBlurStrength) {
@@ -380,6 +382,7 @@ class MainActivity : ComponentActivity() {
                     durationMillis = 300,
                     label = "resultsSpacer",
                 )
+                val bottomSpacerWeight = if (hasVisibleResults) 0f else 1f
 
                 val tintedPrimaryBackground =
                     lerp(
@@ -405,9 +408,63 @@ class MainActivity : ComponentActivity() {
                                 .fillMaxSize()
                                 .padding(horizontal = 16.dp),
                     ) {
-                        Spacer(Modifier.weight(spacerWeight))
+                        if (searchBarPosition == SearchBarPosition.TOP) {
+                            Spacer(Modifier.weight(spacerWeight))
+                        } else {
+                            Spacer(Modifier.weight(bottomSpacerWeight))
+                        }
 
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                        if (searchBarPosition == SearchBarPosition.BOTTOM && hasVisibleResults) {
+                            val listEnterDuration = 250
+                            val listExitDuration = 200
+                            motionAwareVisibility(
+                                visible = hasVisibleResults,
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .padding(bottom = 8.dp),
+                                enter =
+                                    fadeIn(animationSpec = tween(durationMillis = listEnterDuration)) +
+                                        expandVertically(
+                                            expandFrom = Alignment.Top,
+                                            animationSpec = tween(durationMillis = listEnterDuration),
+                                        ),
+                                exit =
+                                    fadeOut(animationSpec = tween(durationMillis = listExitDuration)) +
+                                        shrinkVertically(
+                                            shrinkTowards = Alignment.Top,
+                                            animationSpec = tween(durationMillis = listExitDuration),
+                                        ),
+                            ) {
+                                ItemsList(
+                                    modifier = Modifier.fillMaxSize(),
+                                    results = providerResults,
+                                    onItemClick = { result -> handleResultSelection(result) },
+                                    onItemLongPress = onItemLongPress@{ result ->
+                                        val target = result.aliasTarget ?: return@onItemLongPress
+                                        val suggestion = sanitizeAliasSuggestion(result.title)
+                                        aliasDialogValue = suggestion
+                                        aliasDialogError = null
+                                        aliasDialogCandidate =
+                                            AliasCreationCandidate(
+                                                target = target,
+                                                suggestion = suggestion,
+                                                description = result.subtitle ?: result.title,
+                                            )
+                                    },
+                                    translucentItems = translucentResultsEnabled,
+                                )
+                            }
+                        }
+
+                        Column(
+                            modifier =
+                                if (searchBarPosition == SearchBarPosition.BOTTOM) {
+                                    Modifier.fillMaxWidth().imePadding()
+                                } else {
+                                    Modifier.fillMaxWidth()
+                                },
+                        ) {
                             SearchField(
                                 modifier =
                                     Modifier
@@ -457,7 +514,7 @@ class MainActivity : ComponentActivity() {
                                 horizontalArrangement = if (shouldCenterAppList) Arrangement.Center else Arrangement.End,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                if (appSearchSettings.appListEnabled) {
+                                if (appSearchSettings.appListEnabled && !hasVisibleResults) {
                                     when (appSearchSettings.appListType) {
                                         AppListType.RECENT -> {
                                             RecentAppsList(
@@ -489,7 +546,7 @@ class MainActivity : ComponentActivity() {
                                 }
 
                                 if (settingsIconPosition == SettingsIconPosition.BELOW) {
-                                    if (appSearchSettings.appListEnabled) {
+                                    if (appSearchSettings.appListEnabled && !hasVisibleResults) {
                                         VerticalDivider(
                                             modifier =
                                                 Modifier
@@ -514,50 +571,52 @@ class MainActivity : ComponentActivity() {
                             Spacer(modifier = Modifier.height(6.dp))
                         }
 
-                        if (!hasVisibleResults) {
+                        if (searchBarPosition == SearchBarPosition.TOP && !hasVisibleResults) {
                             Spacer(Modifier.weight(spacerWeight))
                         }
 
-                        val listEnterDuration = 250
-                        val listExitDuration = 200
-                        motionAwareVisibility(
-                            visible = hasVisibleResults,
-                            modifier =
-                                Modifier
-                                    .weight(if (hasVisibleResults) 1f else 0.01f)
-                                    .imePadding()
-                                    .padding(bottom = 8.dp),
-                            enter =
-                                fadeIn(animationSpec = tween(durationMillis = listEnterDuration)) +
-                                    expandVertically(
-                                        expandFrom = Alignment.Top,
-                                        animationSpec = tween(durationMillis = listEnterDuration),
-                                    ),
-                            exit =
-                                fadeOut(animationSpec = tween(durationMillis = listExitDuration)) +
-                                    shrinkVertically(
-                                        shrinkTowards = Alignment.Top,
-                                        animationSpec = tween(durationMillis = listExitDuration),
-                                    ),
-                        ) {
-                            ItemsList(
-                                modifier = Modifier.fillMaxSize(),
-                                results = providerResults,
-                                onItemClick = { result -> handleResultSelection(result) },
-                                onItemLongPress = onItemLongPress@{ result ->
-                                    val target = result.aliasTarget ?: return@onItemLongPress
-                                    val suggestion = sanitizeAliasSuggestion(result.title)
-                                    aliasDialogValue = suggestion
-                                    aliasDialogError = null
-                                    aliasDialogCandidate =
-                                        AliasCreationCandidate(
-                                            target = target,
-                                            suggestion = suggestion,
-                                            description = result.subtitle ?: result.title,
-                                        )
-                                },
-                                translucentItems = translucentResultsEnabled,
-                            )
+                        if (searchBarPosition == SearchBarPosition.TOP) {
+                            val listEnterDuration = 250
+                            val listExitDuration = 200
+                            motionAwareVisibility(
+                                visible = hasVisibleResults,
+                                modifier =
+                                    Modifier
+                                        .weight(if (hasVisibleResults) 1f else 0.01f)
+                                        .imePadding()
+                                        .padding(bottom = 8.dp),
+                                enter =
+                                    fadeIn(animationSpec = tween(durationMillis = listEnterDuration)) +
+                                        expandVertically(
+                                            expandFrom = Alignment.Top,
+                                            animationSpec = tween(durationMillis = listEnterDuration),
+                                        ),
+                                exit =
+                                    fadeOut(animationSpec = tween(durationMillis = listExitDuration)) +
+                                        shrinkVertically(
+                                            shrinkTowards = Alignment.Top,
+                                            animationSpec = tween(durationMillis = listExitDuration),
+                                        ),
+                            ) {
+                                ItemsList(
+                                    modifier = Modifier.fillMaxSize(),
+                                    results = providerResults,
+                                    onItemClick = { result -> handleResultSelection(result) },
+                                    onItemLongPress = onItemLongPress@{ result ->
+                                        val target = result.aliasTarget ?: return@onItemLongPress
+                                        val suggestion = sanitizeAliasSuggestion(result.title)
+                                        aliasDialogValue = suggestion
+                                        aliasDialogError = null
+                                        aliasDialogCandidate =
+                                            AliasCreationCandidate(
+                                                target = target,
+                                                suggestion = suggestion,
+                                                description = result.subtitle ?: result.title,
+                                            )
+                                    },
+                                    translucentItems = translucentResultsEnabled,
+                                )
+                            }
                         }
                     }
 
