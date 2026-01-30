@@ -454,7 +454,7 @@ class MainActivity : ComponentActivity() {
                                             )
                                     },
                                     translucentItems = translucentResultsEnabled,
-                                    verticalArrangement = Arrangement.Bottom,
+                                    verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Bottom),
                                     reverseOrder = true,
                                 )
                             }

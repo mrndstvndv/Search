@@ -116,7 +116,11 @@ fun ItemsList(
     val listState = rememberLazyListState()
     
     LaunchedEffect(displayResults.firstOrNull()?.id) {
-        listState.scrollToItem(0)
+        if (reverseOrder && displayResults.isNotEmpty()) {
+            listState.scrollToItem(displayResults.lastIndex)
+        } else {
+            listState.scrollToItem(0)
+        }
     }
 
     LazyColumn(
