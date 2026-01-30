@@ -511,12 +511,30 @@ class MainActivity : ComponentActivity() {
                             val shouldCenterAppList =
                                 appSearchSettings.centerAppList &&
                                     settingsIconPosition != SettingsIconPosition.BELOW
-                            Row(
+                            val showAppList = appSearchSettings.appListEnabled && !hasVisibleResults
+                            val appListEnterDuration = 250
+                            val appListExitDuration = 200
+                            motionAwareVisibility(
+                                visible = showAppList,
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = if (shouldCenterAppList) Arrangement.Center else Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically,
+                                enter =
+                                    fadeIn(animationSpec = tween(durationMillis = appListEnterDuration)) +
+                                        expandVertically(
+                                            expandFrom = Alignment.Bottom,
+                                            animationSpec = tween(durationMillis = appListEnterDuration),
+                                        ),
+                                exit =
+                                    fadeOut(animationSpec = tween(durationMillis = appListExitDuration)) +
+                                        shrinkVertically(
+                                            shrinkTowards = Alignment.Bottom,
+                                            animationSpec = tween(durationMillis = appListExitDuration),
+                                        ),
                             ) {
-                                if (appSearchSettings.appListEnabled && !hasVisibleResults) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = if (shouldCenterAppList) Arrangement.Center else Arrangement.End,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
                                     when (appSearchSettings.appListType) {
                                         AppListType.RECENT -> {
                                             RecentAppsList(
@@ -545,10 +563,8 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                     }
-                                }
 
-                                if (settingsIconPosition == SettingsIconPosition.BELOW) {
-                                    if (appSearchSettings.appListEnabled && !hasVisibleResults) {
+                                    if (settingsIconPosition == SettingsIconPosition.BELOW) {
                                         VerticalDivider(
                                             modifier =
                                                 Modifier
@@ -556,17 +572,17 @@ class MainActivity : ComponentActivity() {
                                                     .padding(horizontal = 4.dp),
                                             color = MaterialTheme.colorScheme.outlineVariant,
                                         )
-                                    }
 
-                                    IconButton(onClick = {
-                                        val intent = Intent(this@MainActivity, SettingsActivity::class.java)
-                                        startActivity(intent)
-                                    }) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Settings,
-                                            contentDescription = "Settings",
-                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        )
+                                        IconButton(onClick = {
+                                            val intent = Intent(this@MainActivity, SettingsActivity::class.java)
+                                            startActivity(intent)
+                                        }) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Settings,
+                                                contentDescription = "Settings",
+                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            )
+                                        }
                                     }
                                 }
                             }
