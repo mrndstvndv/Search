@@ -454,6 +454,7 @@ class MainActivity : ComponentActivity() {
                                             )
                                     },
                                     translucentItems = translucentResultsEnabled,
+                                    verticalArrangement = Arrangement.Bottom,
                                 )
                             }
                         }

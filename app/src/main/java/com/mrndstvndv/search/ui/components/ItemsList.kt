@@ -107,6 +107,7 @@ fun ItemsList(
     onItemClick: (ProviderResult) -> Unit,
     onItemLongPress: ((ProviderResult) -> Unit)? = null,
     translucentItems: Boolean = false,
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(2.dp),
 ) {
     if (results.isEmpty()) return
 
@@ -119,7 +120,7 @@ fun ItemsList(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement = verticalArrangement,
     ) {
         itemsIndexed(
             items = results,
