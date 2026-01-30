@@ -36,6 +36,7 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -382,7 +383,7 @@ class MainActivity : ComponentActivity() {
                     durationMillis = 300,
                     label = "resultsSpacer",
                 )
-                val bottomSpacerWeight = if (hasVisibleResults) 0f else 1f
+                val bottomSpacerWeight = if (hasVisibleResults) 0.01f else 1f
 
                 val tintedPrimaryBackground =
                     lerp(
